@@ -1,0 +1,19 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 390, "h": 960 },
+    { "file": "VenueBusy.dc.html", "x": 490, "y": 0, "w": 390, "h": 960 },
+    { "file": "BookingConfirm.dc.html", "x": 980, "y": 0, "w": 390, "h": 960 },
+    { "file": "ExtendGame.dc.html", "x": 1470, "y": 0, "w": 390, "h": 960 },
+    { "file": "TeamProfile.dc.html", "x": 1960, "y": 0, "w": 390, "h": 960 },
+    { "file": "Feed.dc.html", "x": 2450, "y": 0, "w": 390, "h": 960 }
+  ],
+  "annotations": [
+    { "id": "note-search", "x": 0, "y": -70, "w": 390, "text": "1. Поиск по времени" },
+    { "id": "note-busy", "x": 490, "y": -70, "w": 390, "text": "2. Занятая площадка — таймер" },
+    { "id": "note-confirm", "x": 980, "y": -70, "w": 390, "text": "3. Гибридное подтверждение" },
+    { "id": "note-extend", "x": 1470, "y": -70, "w": 390, "text": "4. Продление игры" },
+    { "id": "note-team", "x": 1960, "y": -70, "w": 390, "text": "5. Профиль команды" },
+    { "id": "note-feed", "x": 2450, "y": -70, "w": 390, "text": "6. Лента активности" }
+  ],
+  "launch": { "view": "canvas" }
+}

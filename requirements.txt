@@ -1,0 +1,11 @@
+Django==6.1.1
+djangorestframework==3.18.1
+django-filter==26.1
+celery==5.6.3
+redis==8.1.0
+psycopg2-binary==2.9.12
+python-dotenv==1.2.3
+requests==2.34.2
+# firebase-admin — нужен только когда реально включаем push (FIREBASE_CREDENTIALS_PATH
+# задан), импортируется отложенно; версию подобрать/закрепить при подключении.
+firebase-admin

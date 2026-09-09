@@ -1,0 +1,83 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap">
+  <style>
+    :root{
+      --bg:oklch(0.16 0.014 55);
+      --surface:oklch(0.215 0.017 55);
+      --surface2:oklch(0.27 0.019 55);
+      --text:oklch(0.97 0.008 90);
+      --muted:oklch(0.66 0.02 80);
+      --lime:oklch(0.87 0.22 126);
+      --orange:oklch(0.68 0.19 38);
+      --line:oklch(1 0 0 / 0.09);
+    }
+    *{box-sizing:border-box;}
+    body{margin:0;}
+    .screen{width:390px;min-height:924px;background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif;position:relative;overflow:hidden;}
+    .disp{font-family:'Big Shoulders Display',sans-serif;font-weight:900;}
+    .icon{stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+  </style>
+</helmet>
+
+<div class="screen">
+
+  <!-- dimmed backdrop: game-in-progress screen peeking through -->
+  <div style="padding:26px 20px;filter:blur(1px) brightness(0.4);">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="width:9px;height:9px;border-radius:50%;background:var(--lime);"></span>
+      <div style="font-size:13px;font-weight:700;color:var(--lime);letter-spacing:0.03em;">ИГРА ИДЁТ</div>
+    </div>
+    <div class="disp" style="font-size:30px;margin-top:14px;">АРЕНА АК-ОРДО</div>
+    <div style="font-size:13px;color:var(--muted);margin-top:6px;">14:00–15:00 · Октябрьский р-н</div>
+    <div style="margin-top:40px;height:140px;border-radius:18px;background:var(--surface);border:1px solid var(--line);"></div>
+  </div>
+
+  <!-- scrim -->
+  <div style="position:absolute;inset:0;background:oklch(0.1 0.01 55 / 0.72);"></div>
+
+  <!-- bottom sheet -->
+  <div style="position:absolute;left:0;right:0;bottom:0;background:var(--surface);border-radius:28px 28px 0 0;padding:14px 24px 30px;box-shadow:0 -20px 60px oklch(0 0 0 / 0.5);overflow:hidden;">
+    <div style="position:absolute;top:0;left:0;right:0;height:6px;background:linear-gradient(90deg,var(--lime),var(--orange));"></div>
+    <div style="width:44px;height:5px;border-radius:3px;background:var(--line);margin:10px auto 20px;"></div>
+
+    <div style="display:flex;align-items:center;gap:10px;">
+      <svg width="22" height="22" viewBox="0 0 24 24" class="icon" style="color:var(--orange);"><path d="M6 8a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>
+      <div style="font-size:12.5px;font-weight:700;color:var(--orange);letter-spacing:0.03em;">ДО КОНЦА СЛОТА 12 МИН</div>
+    </div>
+
+    <div class="disp" style="font-size:42px;line-height:0.98;margin-top:14px;">ПРОДЛИТЬ<br>ЕЩЁ НА ЧАС?</div>
+    <div style="font-size:13.5px;color:var(--muted);margin-top:10px;line-height:1.4;">Площадка свободна следующим часом — успейте занять её первыми, пока не перехватили.</div>
+
+    <div style="display:flex;align-items:baseline;gap:8px;margin-top:22px;">
+      <div class="disp" style="font-size:34px;color:var(--lime);">+800</div>
+      <div style="font-size:13px;color:var(--muted);">сом за час</div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:20px;">
+      <div style="background:var(--lime);color:oklch(0.18 0.03 126);font-weight:700;font-size:16px;padding:17px;border-radius:15px;text-align:center;">
+        Продлить
+      </div>
+      <div style="color:var(--muted);font-weight:600;font-size:13.5px;padding:6px;text-align:center;">
+        Нет, спасибо
+      </div>
+    </div>
+
+    <!-- decision window ticking bar -->
+    <div style="margin-top:18px;height:5px;border-radius:3px;background:var(--surface2);overflow:hidden;">
+      <div style="width:64%;height:100%;background:var(--orange);"></div>
+    </div>
+    <div style="text-align:center;font-size:10.5px;color:var(--muted);margin-top:8px;">Слот придержан для вас, пока вы решаете</div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

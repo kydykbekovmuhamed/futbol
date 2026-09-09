@@ -1,0 +1,261 @@
+:root{
+  --bg:oklch(0.16 0.014 55);
+  --surface:oklch(0.215 0.017 55);
+  --surface2:oklch(0.27 0.019 55);
+  --text:oklch(0.97 0.008 90);
+  --muted:oklch(0.66 0.02 80);
+  --lime:oklch(0.87 0.22 126);
+  --lime-ink:oklch(0.18 0.03 126);
+  --orange:oklch(0.68 0.19 38);
+  --orange-ink:oklch(0.15 0.02 40);
+  --red:oklch(0.62 0.21 25);
+  --line:oklch(1 0 0 / 0.09);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--bg);}
+body{
+  font-family:'Space Grotesk',sans-serif;
+  color:var(--text);
+  min-height:100vh;
+  background-image:radial-gradient(oklch(1 0 0 / 0.05) 0.6px, transparent 0.6px);
+  background-size:3px 3px;
+}
+a{color:var(--lime);text-decoration:none;}
+button{font-family:inherit;}
+input,select{font-family:inherit;}
+
+.app-shell{
+  width:100%;
+  max-width:440px;
+  min-height:100vh;
+  margin:0 auto;
+  position:relative;
+  display:flex;
+  flex-direction:column;
+}
+
+.disp{font-family:'Big Shoulders Display',sans-serif;font-weight:900;letter-spacing:0.01em;}
+.icon{stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+
+.pill{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:8px 14px;border-radius:999px;border:1.5px solid var(--line);
+  color:var(--muted);font-size:13px;font-weight:600;white-space:nowrap;
+  background:transparent;cursor:pointer;
+}
+.pill.active{background:var(--lime);color:var(--lime-ink);border-color:var(--lime);}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;position:relative;overflow:hidden;}
+
+.sash{clip-path:polygon(0 0,100% 0,92% 100%,0% 100%);position:absolute;top:0;left:0;font-size:11px;font-weight:700;padding:6px 16px 6px 14px;}
+.sash-turf{background:var(--lime);color:var(--lime-ink);}
+.sash-hall{background:var(--orange);color:var(--orange-ink);}
+.sash-stadium{background:var(--orange);color:var(--orange-ink);}
+
+.btn-primary{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  background:var(--lime);color:var(--lime-ink);font-weight:700;font-size:14px;
+  padding:13px 18px;border-radius:14px;border:none;cursor:pointer;width:100%;
+}
+.btn-primary:disabled{opacity:0.5;cursor:default;}
+.btn-secondary{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  background:var(--surface2);color:var(--text);font-weight:600;font-size:14px;
+  padding:13px 18px;border-radius:14px;border:1px solid var(--line);cursor:pointer;width:100%;
+}
+.field-label{font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600;}
+.text-input{
+  width:100%;background:var(--surface);border:1.5px solid var(--line);border-radius:12px;
+  color:var(--text);padding:13px 14px;font-size:15px;outline:none;
+}
+.text-input:focus{border-color:var(--lime);}
+.select-pill{
+  appearance:none;-webkit-appearance:none;
+  background-color:rgba(255,255,255,0.1);
+  border:1.5px solid rgba(255,255,255,0.22);border-radius:999px;color:var(--text);
+  padding:8px 28px 8px 14px;font-size:13px;font-weight:600;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23d8d2c4' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center;cursor:pointer;
+}
+/* Раскрытый список <option> браузер рисует своим нативным (белым) попапом —
+   цвет тут задаём явно тёмный, иначе наследуется светлый .select-pill{color}
+   и текст пропадает на белом фоне. */
+.select-pill option{color:#211d16;background:#fff;}
+
+.toast{
+  position:fixed;left:50%;bottom:24px;transform:translateX(-50%);
+  background:var(--surface2);color:var(--text);border:1px solid var(--line);
+  padding:12px 18px;border-radius:12px;font-size:13px;max-width:90%;text-align:center;
+  box-shadow:0 10px 30px rgba(0,0,0,0.4);z-index:50;
+}
+
+.top-bar{display:flex;align-items:center;justify-content:space-between;padding:26px 20px 6px;}
+.icon-btn{
+  width:40px;height:40px;border-radius:12px;background:var(--surface);border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer;flex:0 0 auto;
+}
+
+/* Скрыть нативный scrollbar, оставив скролл рабочим (Firefox/WebKit/мобильные). */
+.hscroll{
+  scrollbar-width:none;
+  -ms-overflow-style:none;
+  -webkit-overflow-scrolling:touch;
+}
+.hscroll::-webkit-scrollbar{display:none;width:0;height:0;}
+
+/* Edge-fade: обёртка не скроллится сама — на ней сидят ::before/::after,
+   поэтому тень остаётся прижатой к краю контейнера независимо от scrollLeft
+   внутреннего .hscroll-элемента. Видимость переключает JS (app.js,
+   bindScrollFade) классами can-scroll-left/can-scroll-right по факту,
+   есть ли ещё куда скроллить в эту сторону. */
+.fade-wrap{position:relative;}
+.fade-wrap::before,
+.fade-wrap::after{
+  content:"";
+  position:absolute;
+  top:0;bottom:0;
+  width:36px;
+  pointer-events:none;
+  opacity:0;
+  transition:opacity 0.15s ease;
+  z-index:2;
+}
+.fade-wrap::before{left:0;}
+.fade-wrap::after{right:0;}
+.fade-wrap.can-scroll-left::before{opacity:1;}
+.fade-wrap.can-scroll-right::after{opacity:1;}
+
+/* Свёрнутая строка выбора дня/часа — тап открывает шторку .sheet-backdrop. */
+.time-select-row{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  margin:18px 20px 0;padding:12px 16px;
+  background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);
+  border-radius:12px;cursor:pointer;font-size:15px;font-weight:600;
+}
+
+/* Шторка выбора времени (bottom sheet). */
+.sheet-backdrop{
+  position:fixed;inset:0;z-index:40;
+  display:flex;align-items:flex-end;justify-content:center;
+  background:rgba(0,0,0,0.5);
+}
+.sheet-panel{
+  width:100%;max-width:440px;max-height:80vh;overflow-y:auto;
+  background:var(--surface);border-radius:20px 20px 0 0;
+  padding:12px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+  animation:sheet-slide-up 0.22s ease-out;
+}
+@keyframes sheet-slide-up{from{transform:translateY(100%);}to{transform:translateY(0);}}
+.sheet-handle{width:36px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 14px;}
+.sheet-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.sheet-section-label{font-size:12px;color:var(--muted);font-weight:600;margin:18px 0 8px;}
+.sheet-day-row{display:flex;gap:8px;overflow-x:auto;}
+.date-input-pill{
+  flex:0 0 auto;font-family:inherit;color-scheme:dark;
+  border:1.5px solid var(--line);color:var(--muted);
+}
+.date-input-pill.active{color:var(--lime-ink);}
+.date-input-pill::-webkit-calendar-picker-indicator{filter:invert(1);cursor:pointer;}
+.sheet-hour-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding-bottom:4px;}
+.hour-cell{
+  padding:10px 0;text-align:center;border-radius:8px;cursor:pointer;
+  background:rgba(255,255,255,0.06);border:1px solid transparent;
+  color:var(--text);font-weight:600;font-size:14px;
+}
+.hour-cell.active{background:oklch(0.87 0.22 126 / 0.15);border-color:var(--lime);color:var(--lime);}
+
+/* Оверлей "продлить игру" (roadmap 2.3) — может появиться поверх любого
+   экрана поверх шторки выбора времени, поэтому z-index выше .sheet-backdrop. */
+.ext-backdrop{
+  position:fixed;inset:0;z-index:45;
+  display:flex;align-items:flex-end;justify-content:center;
+  background:oklch(0.1 0.01 55 / 0.72);
+}
+.ext-sheet{
+  position:relative;width:100%;max-width:440px;overflow:hidden;
+  background:var(--surface);border-radius:28px 28px 0 0;
+  padding:14px 24px calc(30px + env(safe-area-inset-bottom, 0px));
+  box-shadow:0 -20px 60px oklch(0 0 0 / 0.5);
+  animation:sheet-slide-up 0.22s ease-out;
+}
+.ext-sheet-stripe{position:absolute;top:0;left:0;right:0;height:6px;background:linear-gradient(90deg,var(--lime),var(--orange));}
+.ext-progress{margin-top:18px;height:5px;border-radius:3px;background:var(--surface2);overflow:hidden;}
+.ext-progress-fill{height:100%;background:var(--orange);}
+
+.filters-row-wrap{margin-top:16px;padding:0 20px;}
+.filters-row-wrap::before{background:linear-gradient(to right, var(--bg), transparent);}
+.filters-row-wrap::after{background:linear-gradient(to left, var(--bg), transparent);}
+.filters-row{display:flex;gap:8px;overflow-x:auto;}
+
+.results-header{display:flex;align-items:baseline;justify-content:space-between;padding:22px 20px 12px;}
+
+.venue-list{display:flex;flex-direction:column;gap:14px;padding:0 20px 24px;}
+.venue-card{padding:16px;}
+.venue-card-head{display:flex;justify-content:space-between;gap:12px;margin-top:20px;}
+.venue-card-foot{display:flex;align-items:center;justify-content:space-between;margin-top:14px;}
+.book-btn{display:flex;align-items:center;gap:6px;background:var(--lime);color:var(--lime-ink);font-weight:700;font-size:13px;padding:9px 16px;border-radius:12px;border:none;cursor:pointer;}
+.book-btn:disabled{opacity:0.5;cursor:default;}
+
+.bottom-nav{
+  position:sticky;bottom:0;margin-top:auto;display:flex;justify-content:space-around;align-items:center;
+  padding:14px 8px 20px;background:oklch(0.14 0.012 55 / 0.94);backdrop-filter:blur(10px);border-top:1px solid var(--line);
+}
+.nav-item{display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--muted);cursor:pointer;background:none;border:none;}
+.nav-item.active{color:var(--lime);}
+.nav-item span{font-size:10px;font-weight:700;}
+
+.center-screen{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center;gap:18px;}
+
+.confirm-header{display:flex;align-items:center;justify-content:space-between;padding:26px 20px 0;}
+.booking-tag{font-size:13px;font-weight:700;color:var(--muted);letter-spacing:0.04em;}
+
+.ring-wrap{display:flex;flex-direction:column;align-items:center;padding:26px 20px 10px;}
+.ring{position:relative;width:210px;height:210px;}
+.ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.ring-center .disp{font-size:52px;line-height:1;color:var(--lime);}
+.ring-sub{font-size:11.5px;color:var(--muted);margin-top:4px;font-weight:600;}
+.ring-title{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:24px;margin-top:22px;text-align:center;line-height:1.05;}
+
+.channel-card{padding:16px;display:flex;align-items:center;gap:14px;}
+.channel-icon{width:44px;height:44px;border-radius:12px;background:var(--surface2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+.channel-note{font-size:12.5px;color:var(--muted);line-height:1.4;}
+
+.deposit-card{padding:16px;display:flex;align-items:center;gap:14px;}
+.deposit-icon{width:44px;height:44px;border-radius:12px;background:oklch(0.87 0.22 126 / 0.14);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+
+.summary-row{display:flex;justify-content:space-between;}
+.summary-sub{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);}
+
+.section-pad{padding:16px 20px 0;}
+.footnote{padding:18px 20px 24px;text-align:center;font-size:11.5px;color:var(--muted);line-height:1.5;}
+
+.status-icon-wrap{width:88px;height:88px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+.status-icon-wrap.success{background:oklch(0.87 0.22 126 / 0.16);}
+.status-icon-wrap.fail{background:oklch(0.62 0.21 25 / 0.16);}
+
+.spinner{
+  width:22px;height:22px;border-radius:50%;border:3px solid var(--surface2);
+  border-top-color:var(--lime);animation:spin 0.8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.headline{padding:14px 20px 0;}
+.headline .disp{font-size:40px;line-height:0.95;}
+.headline p{color:var(--muted);font-size:14px;margin-top:8px;}
+
+.error-text{color:var(--red);font-size:13px;margin-top:8px;}
+
+/* Профиль команды: аватар в составе — раз нет реальных имён/аватарок,
+   показываем нейтральную иконку человека вместо инициалов. */
+.avatar{
+  width:40px;height:40px;border-radius:12px;background:var(--surface2);
+  display:flex;align-items:center;justify-content:center;flex:0 0 auto;
+}
+
+select.text-input{appearance:none;-webkit-appearance:none;cursor:pointer;}
+
+/* Лента активности — карточка с цветной полосой слева (bar), тип задаёт цвет. */
+.feed-card{border-radius:16px;padding:16px;}
+.feed-bar{position:absolute;left:0;top:0;bottom:0;width:4px;}
+
+.challenge-candidate:hover{border-color:var(--lime);}

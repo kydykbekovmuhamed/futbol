@@ -1,0 +1,200 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap">
+  <style>
+    :root{
+      --bg:oklch(0.16 0.014 55);
+      --surface:oklch(0.215 0.017 55);
+      --surface2:oklch(0.27 0.019 55);
+      --text:oklch(0.97 0.008 90);
+      --muted:oklch(0.66 0.02 80);
+      --lime:oklch(0.87 0.22 126);
+      --orange:oklch(0.68 0.19 38);
+      --line:oklch(1 0 0 / 0.09);
+    }
+    *{box-sizing:border-box;}
+    body{margin:0;}
+    a{color:var(--lime);text-decoration:none;}
+    a:hover{color:oklch(0.93 0.22 126);}
+    .screen{
+      width:390px;min-height:924px;background:var(--bg);color:var(--text);
+      font-family:'Space Grotesk',sans-serif;position:relative;overflow:hidden;
+      background-image:
+        radial-gradient(oklch(1 0 0 / 0.05) 0.6px, transparent 0.6px);
+      background-size:3px 3px;
+    }
+    .disp{font-family:'Big Shoulders Display',sans-serif;font-weight:900;letter-spacing:0.01em;}
+    .icon{stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+    .pill{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;border:1.5px solid var(--line);color:var(--muted);font-size:13px;font-weight:600;white-space:nowrap;}
+    .pill.active{background:var(--lime);color:oklch(0.18 0.03 126);border-color:var(--lime);}
+    .sash{clip-path:polygon(0 0,100% 0,92% 100%,0% 100%);}
+    .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;position:relative;overflow:hidden;}
+  </style>
+</helmet>
+
+<div class="screen">
+
+  <!-- header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:26px 20px 6px;">
+    <div style="display:flex;align-items:center;gap:9px;">
+      <svg width="26" height="26" viewBox="0 0 24 24" class="icon" style="color:var(--lime);">
+        <circle cx="12" cy="12" r="9"/>
+        <path d="M12 7l3.2 2.1-1.1 3.6h-4.2l-1.1-3.6z"/>
+        <path d="M12 7V3.6M15.2 9.1l3.3-1.2M8.8 9.1l-3.3-1.2M9.9 12.7L7 16.5M14.1 12.7L17 16.5M12 15.7v3.6"/>
+      </svg>
+      <div class="disp" style="font-size:22px;line-height:1;">ФУТБОЛ</div>
+    </div>
+    <div style="width:40px;height:40px;border-radius:12px;background:var(--surface);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;position:relative;">
+      <svg width="19" height="19" viewBox="0 0 24 24" class="icon"><path d="M6 8a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>
+      <div style="position:absolute;top:8px;right:8px;width:7px;height:7px;border-radius:50%;background:var(--orange);"></div>
+    </div>
+  </div>
+
+  <!-- headline -->
+  <div style="padding:14px 20px 0;">
+    <div class="disp" style="font-size:40px;line-height:0.95;">НА КАКОЕ<br>ВРЕМЯ?</div>
+    <div style="color:var(--muted);font-size:14px;margin-top:8px;">Показываем все свободные площадки на выбранный час — сами не ищите, где занято.</div>
+  </div>
+
+  <!-- date pills -->
+  <div style="display:flex;gap:8px;padding:18px 20px 0;overflow:hidden;">
+    <div class="pill active">Сегодня</div>
+    <div class="pill">Завтра</div>
+    <div class="pill">Сб, 12 сен</div>
+    <div class="pill">Вс, 13 сен</div>
+  </div>
+
+  <!-- time ticker -->
+  <div style="margin-top:14px;padding:14px 0;background:var(--surface);border-top:1px solid var(--line);border-bottom:1px solid var(--line);position:relative;">
+    <div style="position:absolute;left:0;top:0;bottom:0;width:24px;background:linear-gradient(90deg,var(--surface),transparent);z-index:2;"></div>
+    <div style="position:absolute;right:0;top:0;bottom:0;width:24px;background:linear-gradient(270deg,var(--surface),transparent);z-index:2;"></div>
+    <div style="display:flex;gap:10px;padding:0 20px;overflow-x:auto;">
+      <div style="flex:0 0 auto;text-align:center;padding:10px 4px;min-width:56px;">
+        <div class="disp" style="font-size:19px;color:var(--muted);">12–13</div>
+      </div>
+      <div style="flex:0 0 auto;text-align:center;padding:10px 4px;min-width:56px;">
+        <div class="disp" style="font-size:19px;color:var(--muted);">13–14</div>
+      </div>
+      <div style="flex:0 0 auto;text-align:center;padding:10px 10px;min-width:78px;background:var(--lime);border-radius:14px;transform:translateY(-3px);box-shadow:0 8px 20px oklch(0.87 0.22 126 / 0.35);">
+        <div class="disp" style="font-size:23px;color:oklch(0.18 0.03 126);">14–15</div>
+      </div>
+      <div style="flex:0 0 auto;text-align:center;padding:10px 4px;min-width:56px;">
+        <div class="disp" style="font-size:19px;color:var(--muted);">15–16</div>
+      </div>
+      <div style="flex:0 0 auto;text-align:center;padding:10px 4px;min-width:56px;">
+        <div class="disp" style="font-size:19px;color:var(--muted);">16–17</div>
+      </div>
+      <div style="flex:0 0 auto;text-align:center;padding:10px 4px;min-width:56px;">
+        <div class="disp" style="font-size:19px;color:var(--muted);">17–18</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- filters -->
+  <div style="display:flex;gap:8px;padding:16px 20px 0;overflow:hidden;">
+    <div class="pill"><svg width="13" height="13" viewBox="0 0 24 24" class="icon"><path d="M12 21s7-7.58 7-12A7 7 0 0 0 5 9c0 4.42 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>Район</div>
+    <div class="pill"><svg width="13" height="13" viewBox="0 0 24 24" class="icon"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="15" cy="18" r="2"/></svg>Покрытие</div>
+    <div class="pill">7x7</div>
+    <div class="pill">Цена</div>
+  </div>
+
+  <!-- results header -->
+  <div style="display:flex;align-items:baseline;justify-content:space-between;padding:22px 20px 12px;">
+    <div>
+      <span class="disp" style="font-size:26px;color:var(--lime);">12</span>
+      <span style="font-size:14px;color:var(--muted);"> площадок свободно на 14:00–15:00</span>
+    </div>
+  </div>
+
+  <!-- venue cards -->
+  <div style="display:flex;flex-direction:column;gap:14px;padding:0 20px 24px;">
+
+    <div class="card" style="padding:16px;">
+      <div style="position:absolute;top:0;left:0;background:var(--lime);color:oklch(0.18 0.03 126);font-size:11px;font-weight:700;padding:6px 16px 6px 14px;" class="sash">ГАЗОН</div>
+      <div style="display:flex;justify-content:space-between;gap:12px;margin-top:20px;">
+        <div>
+          <div class="disp" style="font-size:22px;line-height:1;">АРЕНА АК-ОРДО</div>
+          <div style="font-size:12.5px;color:var(--muted);margin-top:6px;">Октябрьский р-н · 2.3 км</div>
+        </div>
+        <div style="text-align:right;flex:0 0 auto;">
+          <div class="disp" style="font-size:24px;color:var(--lime);">800</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:-4px;">сом/час</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px;">
+        <div class="pill" style="padding:5px 10px;font-size:11.5px;">7×7</div>
+        <div style="display:flex;align-items:center;gap:6px;background:var(--lime);color:oklch(0.18 0.03 126);font-weight:700;font-size:13px;padding:9px 16px;border-radius:12px;">
+          Забронировать
+          <svg width="14" height="14" viewBox="0 0 24 24" style="stroke:oklch(0.18 0.03 126);fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;"><path d="M9 6l6 6-6 6"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="padding:16px;">
+      <div style="position:absolute;top:0;left:0;background:var(--orange);color:oklch(0.15 0.02 40);font-size:11px;font-weight:700;padding:6px 16px 6px 14px;" class="sash">ЗАЛ</div>
+      <div style="display:flex;justify-content:space-between;gap:12px;margin-top:20px;">
+        <div>
+          <div class="disp" style="font-size:22px;line-height:1;">СПОРТ-СИТИ ВОСТОК-5</div>
+          <div style="font-size:12.5px;color:var(--muted);margin-top:6px;">Ленинский р-н · 4.1 км</div>
+        </div>
+        <div style="text-align:right;flex:0 0 auto;">
+          <div class="disp" style="font-size:24px;color:var(--lime);">650</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:-4px;">сом/час</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px;">
+        <div class="pill" style="padding:5px 10px;font-size:11.5px;">5×5</div>
+        <div style="display:flex;align-items:center;gap:6px;background:var(--lime);color:oklch(0.18 0.03 126);font-weight:700;font-size:13px;padding:9px 16px;border-radius:12px;">
+          Забронировать
+          <svg width="14" height="14" viewBox="0 0 24 24" style="stroke:oklch(0.18 0.03 126);fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;"><path d="M9 6l6 6-6 6"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="padding:16px;opacity:0.55;">
+      <div style="position:absolute;top:0;left:0;background:var(--surface2);color:var(--muted);font-size:11px;font-weight:700;padding:6px 16px 6px 14px;" class="sash">ГАЗОН</div>
+      <div style="display:flex;justify-content:space-between;gap:12px;margin-top:20px;">
+        <div>
+          <div class="disp" style="font-size:22px;line-height:1;">БАЙТИК АРЕНА</div>
+          <div style="font-size:12.5px;color:var(--muted);margin-top:6px;">Свердловский р-н · 5.6 км</div>
+        </div>
+        <div style="text-align:right;flex:0 0 auto;">
+          <div class="disp" style="font-size:20px;color:var(--orange);">23:47</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:-4px;">до освобожд.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- bottom nav -->
+  <div style="position:sticky;bottom:0;display:flex;justify-content:space-around;align-items:center;padding:14px 8px 20px;background:oklch(0.14 0.012 55 / 0.94);backdrop-filter:blur(10px);border-top:1px solid var(--line);">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--lime);">
+      <svg width="21" height="21" viewBox="0 0 24 24" class="icon"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <div style="font-size:10px;font-weight:700;">Поиск</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--muted);">
+      <svg width="21" height="21" viewBox="0 0 24 24" class="icon"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14c2.5.3 4.5 2.3 4.5 6"/></svg>
+      <div style="font-size:10px;font-weight:600;">Команда</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--muted);">
+      <svg width="21" height="21" viewBox="0 0 24 24" class="icon"><path d="M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M7 5H4v2a3 3 0 0 0 3 3"/><path d="M17 5h3v2a3 3 0 0 1-3 3"/><path d="M10 14v3h4v-3"/><path d="M8 20h8"/></svg>
+      <div style="font-size:10px;font-weight:600;">Турниры</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--muted);">
+      <svg width="21" height="21" viewBox="0 0 24 24" class="icon"><path d="M4 11l8-7 8 7"/><path d="M6 10v9h12v-9"/></svg>
+      <div style="font-size:10px;font-weight:600;">Лента</div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>
