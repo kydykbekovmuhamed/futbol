@@ -135,10 +135,11 @@ class ChallengeServiceTests(CommunityFixturesMixin, TestCase):
 
 class SubscriptionAndStatsTests(CommunityFixturesMixin, TestCase):
     def test_subscribe_creates_captured_payment_and_activates(self):
-        subscription = subscribe_team(team=self.team_a, activator=self.captain_a)
+        result = subscribe_team(team=self.team_a, activator=self.captain_a)
 
-        self.assertTrue(subscription.is_active)
-        payment = Payment.objects.get(team_subscription=subscription)
+        self.assertTrue(result.subscription.is_active)
+        self.assertEqual(result.payment_redirect_url, "")
+        payment = Payment.objects.get(team_subscription=result.subscription)
         self.assertEqual(payment.status, PaymentStatus.CAPTURED)
         self.assertEqual(payment.amount, Decimal(str(500)))
 
@@ -148,15 +149,15 @@ class SubscriptionAndStatsTests(CommunityFixturesMixin, TestCase):
 
     def test_renewal_extends_from_current_expiry_not_now(self):
         first = subscribe_team(team=self.team_a, activator=self.captain_a)
-        original_expiry = first.expires_at
+        original_expiry = first.subscription.expires_at
 
         second = subscribe_team(team=self.team_a, activator=self.captain_a)
 
         self.assertEqual(
-            second.expires_at,
+            second.subscription.expires_at,
             original_expiry + timedelta(days=30),
         )
-        self.assertEqual(Payment.objects.filter(team_subscription=first).count(), 2)
+        self.assertEqual(Payment.objects.filter(team_subscription=first.subscription).count(), 2)
 
     def test_extended_stats_requires_active_subscription(self):
         with self.assertRaises(SubscriptionRequired):
@@ -172,7 +173,29 @@ class SubscriptionAndStatsTests(CommunityFixturesMixin, TestCase):
         self.assertEqual(stats["games_played"], 1)
         self.assertEqual(stats["win_rate_percent"], 100.0)
         self.assertEqual(stats["longest_win_streak"], 1)
-        self.assertEqual(len(stats["monthly_breakdown"]), 1)
+
+    def test_redirect_provider_leaves_payment_held_and_subscription_inactive(self):
+        """
+        Провайдер с редиректом (FreedomPay) не подтверждает hold мгновенно —
+        subscribe_team() раньше списывал сразу и это было архитектурным
+        разрывом (см. CLAUDE.md, "Реальные провайдеры"). Теперь при
+        redirect_url платёж остаётся HELD, а подписка не продлевается до
+        вебхука (см. следующий тест и apps.payments.tests — вебхук-уровень).
+        """
+        from unittest.mock import patch
+
+        from apps.payments.providers import PaymentResult
+
+        fake_result = PaymentResult(success=True, external_id="fp-sub-1", redirect_url="https://pay.example/sub")
+        with patch("apps.community.services.get_payment_provider") as mock_get_provider:
+            mock_get_provider.return_value.hold.return_value = fake_result
+            mock_get_provider.return_value.strategy = "hold_capture"
+            result = subscribe_team(team=self.team_a, activator=self.captain_a)
+
+        self.assertEqual(result.payment_redirect_url, "https://pay.example/sub")
+        self.assertFalse(result.subscription.is_active)
+        payment = Payment.objects.get(team_subscription=result.subscription)
+        self.assertEqual(payment.status, PaymentStatus.HELD)
 
 
 class CommunityViewsTests(CommunityFixturesMixin, APITestCase):

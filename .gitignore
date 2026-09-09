@@ -2,8 +2,10 @@ venv/
 __pycache__/
 *.pyc
 .env
+secrets/
 db.sqlite3
 staticfiles/
 *.log
 .DS_Store
 .claude/
+apps/frontend/tests/_generated_harness.js

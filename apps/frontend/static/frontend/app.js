@@ -3,6 +3,16 @@
 
   var STORAGE_KEY = "futbol_token";
   var API_BASE = "/api";
+
+  var FIREBASE_CONFIG = {
+    apiKey: "AIzaSyAJR17Q-JBedIbtY533ElecSM7MDvy1Og0",
+    authDomain: "futbol-app-4f955.firebaseapp.com",
+    projectId: "futbol-app-4f955",
+    storageBucket: "futbol-app-4f955.firebasestorage.app",
+    messagingSenderId: "863563525836",
+    appId: "1:863563525836:web:2b98399d3d55f622b3dc69"
+  };
+  var FIREBASE_VAPID_KEY = "BFCqo0uj_NZN0N0fg_-GnGykLe7G0SKhXkJ_vIyd2SZ1g6Xa02uK4YMMUVF7_gNiOqeoJLwbay5pUnghZSfUBr4";
   var BISHKEK_OFFSET_HOURS = 6;
   var HOURS = []; // 8..23
   for (var h = 8; h <= 23; h++) HOURS.push(h);
@@ -33,7 +43,8 @@
     trendUp: '<svg width="24" height="24" viewBox="0 0 24 24" style="stroke:var(--lime);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto;"><path d="M4 19V10M11 19V5M18 19v-7"/></svg>',
     person: '<svg width="17" height="17" viewBox="0 0 24 24" class="icon" style="color:var(--muted);"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>',
     list: '<svg width="17" height="17" viewBox="0 0 24 24" class="icon"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>',
-    slidersFilter: '<svg width="15" height="15" viewBox="0 0 24 24" class="icon"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="15" cy="18" r="2"/></svg>'
+    slidersFilter: '<svg width="15" height="15" viewBox="0 0 24 24" class="icon"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="15" cy="18" r="2"/></svg>',
+    plus: '<svg width="17" height="17" viewBox="0 0 24 24" class="icon"><path d="M12 5v14M5 12h14"/></svg>'
   };
 
   var SURFACE_META = {
@@ -91,7 +102,26 @@
 
     // ---- my bookings (не из макета — очевидный пробел: забронировать можно, посмотреть историю негде) ----
     myBookingsLoading: false,
-    myBookingsList: []
+    myBookingsList: [],
+
+    // ---- tournaments (не из макета — бэкенд был полностью готов, экрана не было вообще) ----
+    tournamentsLoading: false,
+    tournamentsList: [],
+    tournamentCreateOpen: false,
+    tournamentCreateBusy: false,
+    tournamentCreateError: "",
+    tournamentDetailLoading: false,
+    tournamentDetail: null,
+    tournamentRegistrations: [],
+    tournamentStandings: [],
+    tournamentMatches: [],
+    tournamentRegisterBusy: false,
+
+    // ---- team subscription / extended stats (не из макета — бэкенд был готов, экрана не было) ----
+    teamSubscriptionChecked: false,
+    teamExtendedStats: null, // не null => подписка активна (сам факт успешного ответа extended-stats/)
+    teamStatsExpanded: false,
+    teamSubscribeBusy: false
   };
   state.view = state.token ? "main" : "login-phone";
 
@@ -210,6 +240,50 @@
     });
   }
 
+  // ---- push-уведомления (Firebase Cloud Messaging) ----------------------
+  // typeof firebase === "undefined" делает всю функцию безопасным no-op
+  // под Node-тест-харнессом (apps/frontend/tests/), где SDK не грузится —
+  // без этой проверки тесты падали бы на ReferenceError. По той же причине
+  // проверяем каждый Web API отдельно (Notification, navigator.serviceWorker)
+  // вместо того чтобы полагаться на их наличие.
+  function initPushNotifications() {
+    if (typeof firebase === "undefined") return;
+    if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+    if (typeof Notification === "undefined" || Notification.permission === "denied") return;
+
+    navigator.serviceWorker.register("/static/frontend/firebase-messaging-sw.js")
+      .then(function (registration) {
+        var app = firebase.apps && firebase.apps.length ? firebase.apps[0] : firebase.initializeApp(FIREBASE_CONFIG);
+        var messaging = firebase.messaging(app);
+
+        function registerToken() {
+          messaging.getToken({ vapidKey: FIREBASE_VAPID_KEY, serviceWorkerRegistration: registration })
+            .then(function (token) {
+              if (!token) return;
+              return apiFetch("/notifications/device-tokens/", { method: "POST", body: { token: token, platform: "web" } });
+            })
+            .catch(function (err) { console.error("Push token error:", err); });
+        }
+
+        if (Notification.permission === "granted") {
+          registerToken();
+        } else if (Notification.permission === "default") {
+          Notification.requestPermission().then(function (permission) {
+            if (permission === "granted") registerToken();
+          });
+        }
+
+        // Пуш, пришедший, пока вкладка открыта и активна — фоновый обработчик
+        // в firebase-messaging-sw.js покрывает случай закрытой/неактивной вкладки.
+        messaging.onMessage(function (payload) {
+          var title = (payload.notification && payload.notification.title) || "Футбол";
+          var body = (payload.notification && payload.notification.body) || "";
+          showToast(title + (body ? ": " + body : ""));
+        });
+      })
+      .catch(function (err) { console.error("Push service worker registration failed:", err); });
+  }
+
   function extractErrorMessage(data) {
     if (!data) return null;
     if (typeof data.detail === "string") return data.detail;
@@ -239,10 +313,13 @@
       case "team": html += renderTeam(); break;
       case "feed": html += renderFeed(); break;
       case "my-bookings": html += renderMyBookings(); break;
+      case "tournaments": html += renderTournaments(); break;
+      case "tournament-detail": html += renderTournamentDetail(); break;
     }
     html += "</div>";
     if (state.challengePickerOpen) html += renderChallengePicker();
     if (state.inviteInfoOpen) html += renderInviteInfo();
+    if (state.tournamentCreateOpen) html += renderTournamentCreateForm();
     if (state.extensionOffer) html += renderExtensionOffer();
     root.innerHTML = html;
     bind();
@@ -466,6 +543,12 @@
       loadFeed();
       return;
     }
+    if (key === "cup") {
+      state.view = "tournaments";
+      render();
+      loadTournaments();
+      return;
+    }
     showToast("Этот раздел ещё в разработке");
   }
 
@@ -661,6 +744,8 @@
         '<div style="display:flex;gap:6px;">' + formSquares + "</div>" +
       "</div>" +
 
+      renderTeamSubscriptionSection() +
+
       '<div style="padding:22px 20px 0;">' +
         '<div style="display:flex;align-items:baseline;justify-content:space-between;">' +
           '<div class="disp" style="font-size:19px;">СОСТАВ</div>' +
@@ -679,6 +764,48 @@
       "</div>" +
 
       renderBottomNav("team")
+    );
+  }
+
+  function renderTeamSubscriptionSection() {
+    if (!state.teamSubscriptionChecked) {
+      return '<div style="padding:16px 20px 0;"><div class="card" style="padding:16px;text-align:center;"><span class="spinner"></span></div></div>';
+    }
+
+    if (!state.teamExtendedStats) {
+      return (
+        '<div style="padding:16px 20px 0;">' +
+          '<div class="card" style="padding:16px;display:flex;align-items:center;justify-content:space-between;gap:10px;">' +
+            '<div><div style="font-weight:700;font-size:14px;">Расширенная статистика</div><div style="font-size:11.5px;color:var(--muted);margin-top:2px;">Помесячная разбивка, серии побед — по подписке</div></div>' +
+            '<button id="team-subscribe-btn" style="background:var(--lime);color:var(--lime-ink);font-weight:700;font-size:12.5px;padding:9px 14px;border-radius:10px;border:none;cursor:pointer;white-space:nowrap;" ' + (state.teamSubscribeBusy ? "disabled" : "") + ">" +
+              (state.teamSubscribeBusy ? '<span class="spinner"></span>' : "Оформить") +
+            "</button>" +
+          "</div>" +
+        "</div>"
+      );
+    }
+
+    var stats = state.teamExtendedStats;
+    var monthsHtml = stats.monthly_breakdown.map(function (m) {
+      return '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);padding:4px 0;"><div>' + escapeHtml(m.month) + "</div><div>" + m.wins + "В " + m.draws + "Н " + m.losses + "П</div></div>";
+    }).join("");
+
+    return (
+      '<div style="padding:16px 20px 0;">' +
+        '<div class="card" style="padding:16px;">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;" id="team-stats-toggle">' +
+            '<div style="font-weight:700;font-size:14px;color:var(--lime);">Расширенная статистика</div>' +
+            ICON.chevronDown +
+          "</div>" +
+          (state.teamStatsExpanded ? (
+            '<div style="margin-top:12px;">' +
+              '<div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);"><div>Win rate</div><div style="color:var(--text);font-weight:600;">' + stats.win_rate_percent + '%</div></div>' +
+              '<div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-top:6px;"><div>Лучшая серия побед</div><div style="color:var(--text);font-weight:600;">' + stats.longest_win_streak + "</div></div>" +
+              (monthsHtml ? '<div style="height:1px;background:var(--line);margin:12px 0;"></div>' + monthsHtml : "") +
+            "</div>"
+          ) : "") +
+        "</div>" +
+      "</div>"
     );
   }
 
@@ -959,6 +1086,197 @@
     );
   }
 
+  // ---- view: tournaments (не из макета — бэкенд был готов, экрана не было) ----
+
+  var TOURNAMENT_STATUS_COLOR = {
+    registration_open: "var(--lime)",
+    registration_closed: "var(--orange)",
+    cancelled: "var(--red, oklch(0.62 0.21 25))",
+    completed: "var(--muted)"
+  };
+
+  function renderTournaments() {
+    var body;
+    if (state.tournamentsLoading) {
+      body = '<div class="center-screen"><span class="spinner"></span></div>';
+    } else if (state.tournamentsList.length === 0) {
+      body = (
+        '<div class="center-screen">' +
+          '<div style="color:var(--muted);font-size:14px;">Турниров пока нет — создайте первый.</div>' +
+          '<button id="tournament-empty-create-btn" class="btn-primary" style="max-width:240px;">Создать турнир</button>' +
+        "</div>"
+      );
+    } else {
+      body = '<div style="display:flex;flex-direction:column;gap:12px;padding:14px 20px 24px;">' + state.tournamentsList.map(renderTournamentCard).join("") + "</div>";
+    }
+
+    return (
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:26px 20px 4px;">' +
+        '<div class="disp" style="font-size:32px;">ТУРНИРЫ</div>' +
+        '<div class="icon-btn" id="tournament-create-btn">' + ICON.plus + "</div>" +
+      "</div>" +
+      body +
+      renderBottomNav("cup")
+    );
+  }
+
+  function renderTournamentCard(t) {
+    var color = TOURNAMENT_STATUS_COLOR[t.status] || "var(--muted)";
+    var teamsLabel = t.registered_teams_count + (t.max_teams ? "/" + t.max_teams : "") + " " + pluralize(t.registered_teams_count, "команда", "команды", "команд");
+    return (
+      '<div class="card tournament-card" data-tournament-id="' + t.id + '" style="padding:16px;cursor:pointer;">' +
+        (t.sponsor_name ? '<div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:0.04em;margin-bottom:8px;">ПРИ ПОДДЕРЖКЕ ' + escapeHtml(t.sponsor_name.toUpperCase()) + "</div>" : "") +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">' +
+          '<div class="disp" style="font-size:20px;line-height:1.05;">' + escapeHtml(t.name.toUpperCase()) + "</div>" +
+          '<div style="background:' + color + ';color:var(--bg);font-size:10px;font-weight:700;padding:4px 9px;border-radius:7px;white-space:nowrap;">' + escapeHtml(t.status_display.toUpperCase()) + "</div>" +
+        "</div>" +
+        '<div style="height:1px;background:var(--line);margin:12px 0;"></div>' +
+        '<div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);">' +
+          "<div>Взнос " + money(t.entry_fee) + " сом · " + teamsLabel + "</div>" +
+          "<div>до " + formatDateBishkek(t.registration_deadline) + "</div>" +
+        "</div>" +
+      "</div>"
+    );
+  }
+
+  function renderTournamentCreateForm() {
+    return (
+      '<div class="sheet-backdrop" id="tournament-create-backdrop" style="z-index:46;">' +
+        '<div class="sheet-panel">' +
+          '<div class="sheet-handle"></div>' +
+          '<div class="sheet-header"><div class="disp" style="font-size:18px;">НОВЫЙ ТУРНИР</div><div class="icon-btn" id="tournament-create-close">' + ICON.close + "</div></div>" +
+          '<div style="display:flex;flex-direction:column;gap:14px;margin-top:10px;">' +
+            '<div><div class="field-label">Название</div><input id="tournament-name-input" class="text-input" placeholder="Кубок офиса"></div>' +
+            '<div><div class="field-label">При поддержке (необязательно)</div><input id="tournament-sponsor-input" class="text-input" placeholder="Название бренда"></div>' +
+            '<div style="display:flex;gap:10px;">' +
+              '<div style="flex:1;"><div class="field-label">Взнос с команды, сом</div><input id="tournament-fee-input" class="text-input" type="number" min="0" value="1000"></div>' +
+              '<div style="flex:1;"><div class="field-label">Мин. команд</div><input id="tournament-min-input" class="text-input" type="number" min="2" value="4"></div>' +
+            "</div>" +
+            '<div><div class="field-label">Макс. команд (необязательно)</div><input id="tournament-max-input" class="text-input" type="number" min="2" placeholder="Без лимита"></div>' +
+            '<div><div class="field-label">Дедлайн регистрации</div><input id="tournament-deadline-input" class="text-input" type="datetime-local"></div>' +
+            (state.tournamentCreateError ? '<div class="error-text">' + escapeHtml(state.tournamentCreateError) + "</div>" : "") +
+            '<button id="tournament-create-submit-btn" class="btn-primary" ' + (state.tournamentCreateBusy ? "disabled" : "") + ">" +
+              (state.tournamentCreateBusy ? '<span class="spinner"></span>' : "Создать") +
+            "</button>" +
+          "</div>" +
+        "</div>" +
+      "</div>"
+    );
+  }
+
+  function renderTournamentDetail() {
+    if (state.tournamentDetailLoading || !state.tournamentDetail) {
+      return (
+        '<div style="display:flex;align-items:center;justify-content:space-between;padding:26px 20px 0;">' +
+          '<div class="icon-btn" id="tournament-detail-back-btn">' + ICON.chevronLeft + "</div>" +
+          '<div style="font-size:12.5px;font-weight:700;color:var(--muted);letter-spacing:0.05em;">ТУРНИР</div>' +
+          '<div style="width:38px;"></div>' +
+        "</div>" +
+        '<div class="center-screen"><span class="spinner"></span></div>'
+      );
+    }
+
+    var t = state.tournamentDetail;
+    var color = TOURNAMENT_STATUS_COLOR[t.status] || "var(--muted)";
+    var myReg = state.myTeam ? state.tournamentRegistrations.find(function (r) { return r.team === state.myTeam.id && r.status === "registered"; }) : null;
+
+    var actionHtml = "";
+    if (t.status === "registration_open") {
+      if (myReg) {
+        actionHtml = (
+          '<div class="card" style="padding:16px;display:flex;align-items:center;justify-content:space-between;gap:10px;">' +
+            '<div><div style="font-weight:700;font-size:14px;color:var(--lime);">Вы зарегистрированы</div><div style="font-size:11.5px;color:var(--muted);margin-top:2px;">' + escapeHtml(state.myTeam.name) + "</div></div>" +
+            '<div id="tournament-cancel-reg-btn" style="color:var(--muted);font-weight:600;font-size:12.5px;cursor:pointer;text-decoration:underline;">Отменить</div>' +
+          "</div>"
+        );
+      } else if (state.myTeam) {
+        actionHtml = (
+          '<button id="tournament-register-btn" class="btn-primary" ' + (state.tournamentRegisterBusy ? "disabled" : "") + ">" +
+            (state.tournamentRegisterBusy ? '<span class="spinner"></span>' : "Зарегистрировать «" + escapeHtml(state.myTeam.name) + "»") +
+          "</button>"
+        );
+      } else {
+        actionHtml = '<div style="color:var(--muted);font-size:13px;text-align:center;">Нужна своя команда, чтобы зарегистрироваться — создайте её на вкладке «Команда».</div>';
+      }
+    }
+
+    var teamsHtml = state.tournamentRegistrations.filter(function (r) { return r.status === "registered"; }).map(function (r) {
+      return '<div class="card" style="padding:12px 14px;font-weight:600;font-size:13.5px;">' + escapeHtml(r.team_name) + "</div>";
+    }).join("");
+
+    var standingsHtml = "";
+    if (state.tournamentStandings.length > 0) {
+      standingsHtml = (
+        '<div style="padding:22px 20px 0;">' +
+          '<div class="disp" style="font-size:19px;">ТАБЛИЦА</div>' +
+          '<div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;">' +
+            state.tournamentStandings.map(function (row, i) {
+              return (
+                '<div class="card" style="padding:12px 14px;display:flex;align-items:center;gap:12px;">' +
+                  '<div class="disp" style="font-size:16px;color:var(--muted);width:20px;">' + (i + 1) + "</div>" +
+                  '<div style="flex:1;font-weight:600;font-size:13.5px;">' + escapeHtml(row.team_name) + "</div>" +
+                  '<div style="font-size:11px;color:var(--muted);">И ' + row.played + " · В " + row.wins + " · Н " + row.draws + " · П " + row.losses + "</div>" +
+                  '<div class="disp" style="font-size:18px;color:var(--lime);width:28px;text-align:right;">' + row.points + "</div>" +
+                "</div>"
+              );
+            }).join("") +
+          "</div>" +
+        "</div>"
+      );
+    }
+
+    var matchesHtml = "";
+    if (state.tournamentMatches.length > 0) {
+      matchesHtml = (
+        '<div style="padding:22px 20px 24px;">' +
+          '<div class="disp" style="font-size:19px;">МАТЧИ</div>' +
+          '<div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;">' +
+            state.tournamentMatches.map(function (m) {
+              var played = m.match_status === "played";
+              return (
+                '<div class="card" style="padding:12px 14px;">' +
+                  '<div style="font-size:10.5px;color:var(--muted);margin-bottom:6px;">РАУНД ' + m.round_number + "</div>" +
+                  '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+                    '<div style="font-weight:600;font-size:13.5px;flex:1;">' + escapeHtml(m.home_team_name) + "</div>" +
+                    '<div class="disp" style="font-size:18px;color:' + (played ? "var(--lime)" : "var(--muted)") + ';padding:0 10px;">' + (played ? m.home_score + " : " + m.away_score : "—") + "</div>" +
+                    '<div style="font-weight:600;font-size:13.5px;flex:1;text-align:right;">' + escapeHtml(m.away_team_name) + "</div>" +
+                  "</div>" +
+                "</div>"
+              );
+            }).join("") +
+          "</div>" +
+        "</div>"
+      );
+    }
+
+    return (
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:26px 20px 0;">' +
+        '<div class="icon-btn" id="tournament-detail-back-btn">' + ICON.chevronLeft + "</div>" +
+        '<div style="font-size:12.5px;font-weight:700;color:var(--muted);letter-spacing:0.05em;">ТУРНИР</div>' +
+        '<div style="width:38px;"></div>' +
+      "</div>" +
+      '<div style="padding:16px 20px 0;">' +
+        (t.sponsor_name ? '<div style="font-size:10px;font-weight:700;color:var(--muted);letter-spacing:0.04em;margin-bottom:8px;">ПРИ ПОДДЕРЖКЕ ' + escapeHtml(t.sponsor_name.toUpperCase()) + "</div>" : "") +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">' +
+          '<div class="disp" style="font-size:26px;line-height:1.05;">' + escapeHtml(t.name.toUpperCase()) + "</div>" +
+          '<div style="background:' + color + ';color:var(--bg);font-size:10px;font-weight:700;padding:4px 9px;border-radius:7px;white-space:nowrap;">' + escapeHtml(t.status_display.toUpperCase()) + "</div>" +
+        "</div>" +
+        (t.description ? '<div style="font-size:13px;color:var(--muted);margin-top:8px;">' + escapeHtml(t.description) + "</div>" : "") +
+      "</div>" +
+      '<div style="padding:16px 20px 0;">' +
+        '<div class="card" style="padding:16px;display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);">' +
+          "<div>Взнос " + money(t.entry_fee) + " сом</div>" +
+          "<div>" + t.registered_teams_count + (t.max_teams ? "/" + t.max_teams : "") + " команд</div>" +
+          "<div>до " + formatDateBishkek(t.registration_deadline) + "</div>" +
+        "</div>" +
+      "</div>" +
+      (actionHtml ? '<div style="padding:16px 20px 0;">' + actionHtml + "</div>" : "") +
+      (teamsHtml ? '<div style="padding:22px 20px 0;"><div class="disp" style="font-size:19px;">КОМАНДЫ</div><div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;">' + teamsHtml + "</div></div>" : "") +
+      standingsHtml +
+      matchesHtml
+    );
+  }
+
   // ---- overlay: extension offer (roadmap 2.3, ExtendGame.dc.html) -------
 
   function renderExtensionOffer() {
@@ -1068,6 +1386,7 @@
           return;
         }
         state.myTeam = teams[0];
+        checkTeamSubscription(teams[0].id); // не блокирует основной рендер — своя мини-загрузка в секции
         return loadTeamMembersAndMatches(teams[0].id).then(function () {
           state.teamLoading = false;
           render();
@@ -1089,6 +1408,46 @@
       state.teamMembers = asArray(results[0]);
       state.teamMatches = asArray(results[1]).filter(function (m) { return m.status === "played"; });
     });
+  }
+
+  function checkTeamSubscription(teamId) {
+    // Отдельного "проверить подписку" эндпойнта нет — extended-stats/ и есть
+    // проверка: 200 с данными значит активна, 402 значит нет. Тот же контракт,
+    // которым бэкенд уже был покрыт тестами (apps.community.tests).
+    state.teamSubscriptionChecked = false;
+    apiFetch("/community/teams/" + teamId + "/extended-stats/")
+      .then(function (data) {
+        state.teamExtendedStats = data;
+        state.teamSubscriptionChecked = true;
+        render();
+      })
+      .catch(function (err) {
+        state.teamExtendedStats = null; // 402 (нет подписки) или любая другая ошибка — не блокируем профиль
+        state.teamSubscriptionChecked = true;
+        render();
+      });
+  }
+
+  function subscribeTeamAction() {
+    if (state.teamSubscribeBusy || !state.myTeam) return;
+    state.teamSubscribeBusy = true;
+    render();
+    apiFetch("/community/teams/" + state.myTeam.id + "/subscribe/", { method: "POST" })
+      .then(function (data) {
+        state.teamSubscribeBusy = false;
+        if (data.payment_redirect_url) {
+          showToast("Переходим к оплате подписки...");
+          window.location.href = data.payment_redirect_url;
+          return;
+        }
+        showToast("Подписка оформлена!");
+        checkTeamSubscription(state.myTeam.id);
+      })
+      .catch(function (err) {
+        state.teamSubscribeBusy = false;
+        render();
+        showToast(err.message || "Не удалось оформить подписку.");
+      });
   }
 
   function createTeamSubmit(name, district) {
@@ -1218,21 +1577,27 @@
       });
   }
 
-  // ---- actions: activity feed (Feed.dc.html) -----------------------------
-
-  function loadFeed() {
-    state.feedLoading = true;
-    render();
-
-    var teamReady = state.myTeam ? Promise.resolve() : apiFetch("/teams/?mine=true").then(function (data) {
+  // Подгружает state.myTeam (+ состав/матчи), если ещё не загружена в этой
+  // сессии — используется везде, где нужна "моя команда", но экран мог быть
+  // открыт напрямую, минуя вкладку "Команда".
+  function ensureMyTeamLoaded() {
+    if (state.myTeam) return Promise.resolve();
+    return apiFetch("/teams/?mine=true").then(function (data) {
       var teams = asArray(data);
       if (teams.length) {
         state.myTeam = teams[0];
         return loadTeamMembersAndMatches(teams[0].id);
       }
     });
+  }
 
-    teamReady
+  // ---- actions: activity feed (Feed.dc.html) -----------------------------
+
+  function loadFeed() {
+    state.feedLoading = true;
+    render();
+
+    ensureMyTeamLoaded()
       .then(function () {
         return Promise.all([
           apiFetch("/community/feed/"),
@@ -1443,11 +1808,21 @@
         });
       }
 
-      if (state.myTeam) {
-        document.getElementById("team-leave-btn").addEventListener("click", leaveTeamAction);
+      var leaveBtn = document.getElementById("team-leave-btn");
+      if (leaveBtn) {
+        leaveBtn.addEventListener("click", leaveTeamAction);
         document.getElementById("team-challenge-btn").addEventListener("click", openChallengePicker);
         document.getElementById("team-invite-btn").addEventListener("click", function () {
           state.inviteInfoOpen = true;
+          render();
+        });
+      }
+      var subscribeBtn = document.getElementById("team-subscribe-btn");
+      if (subscribeBtn) subscribeBtn.addEventListener("click", subscribeTeamAction);
+      var statsToggle = document.getElementById("team-stats-toggle");
+      if (statsToggle) {
+        statsToggle.addEventListener("click", function () {
+          state.teamStatsExpanded = !state.teamStatsExpanded;
           render();
         });
       }
@@ -1482,6 +1857,75 @@
           var id = parseInt(el.getAttribute("data-booking-id"), 10);
           var b = state.myBookingsList.find(function (x) { return x.id === id; });
           if (b) openBookingFromList(b);
+        });
+      });
+    }
+
+    if (state.view === "tournaments") {
+      bindBottomNav();
+      document.getElementById("tournament-create-btn").addEventListener("click", function () {
+        state.tournamentCreateOpen = true;
+        render();
+      });
+      var emptyCreateBtn = document.getElementById("tournament-empty-create-btn");
+      if (emptyCreateBtn) {
+        emptyCreateBtn.addEventListener("click", function () {
+          state.tournamentCreateOpen = true;
+          render();
+        });
+      }
+      document.querySelectorAll(".tournament-card[data-tournament-id]").forEach(function (el) {
+        el.addEventListener("click", function () {
+          openTournamentDetail(parseInt(el.getAttribute("data-tournament-id"), 10));
+        });
+      });
+    }
+
+    if (state.view === "tournament-detail") {
+      document.getElementById("tournament-detail-back-btn").addEventListener("click", function () {
+        state.view = "tournaments";
+        render();
+        loadTournaments();
+      });
+      var regBtn = document.getElementById("tournament-register-btn");
+      if (regBtn) regBtn.addEventListener("click", registerMyTeamForTournament);
+      var cancelRegBtn = document.getElementById("tournament-cancel-reg-btn");
+      if (cancelRegBtn) {
+        cancelRegBtn.addEventListener("click", function () {
+          if (!state.myTeam) return;
+          var myReg = state.tournamentRegistrations.find(function (r) { return r.team === state.myTeam.id && r.status === "registered"; });
+          if (myReg) cancelMyTournamentRegistration(myReg.id);
+        });
+      }
+    }
+
+    if (state.tournamentCreateOpen) {
+      document.getElementById("tournament-create-backdrop").addEventListener("click", function (e) {
+        if (e.target.id === "tournament-create-backdrop") { state.tournamentCreateOpen = false; render(); }
+      });
+      document.getElementById("tournament-create-close").addEventListener("click", function () {
+        state.tournamentCreateOpen = false;
+        render();
+      });
+      document.getElementById("tournament-create-submit-btn").addEventListener("click", function () {
+        var name = document.getElementById("tournament-name-input").value.trim();
+        var sponsor = document.getElementById("tournament-sponsor-input").value.trim();
+        var fee = document.getElementById("tournament-fee-input").value;
+        var minTeams = document.getElementById("tournament-min-input").value;
+        var maxTeams = document.getElementById("tournament-max-input").value;
+        var deadlineLocal = document.getElementById("tournament-deadline-input").value;
+        if (!name || !fee || !deadlineLocal) {
+          state.tournamentCreateError = "Заполните название, взнос и дедлайн.";
+          render();
+          return;
+        }
+        submitTournamentCreate({
+          name: name,
+          sponsor_name: sponsor,
+          entry_fee: fee,
+          min_teams: minTeams ? parseInt(minTeams, 10) : 4,
+          max_teams: maxTeams ? parseInt(maxTeams, 10) : null,
+          registration_deadline: new Date(deadlineLocal).toISOString()
         });
       });
     }
@@ -1565,6 +2009,7 @@
         render();
         loadVenues();
         startExtensionWatch();
+        initPushNotifications();
       })
       .catch(function (err) {
         state.authBusy = false;
@@ -1583,6 +2028,9 @@
     state.inviteInfoOpen = false;
     state.timeSheetOpen = false;
     state.myTeam = null;
+    state.teamSubscriptionChecked = false;
+    state.teamExtendedStats = null;
+    state.teamStatsExpanded = false;
     state.token = null;
     localStorage.removeItem(STORAGE_KEY);
     state.view = "login-phone";
@@ -1619,6 +2067,107 @@
     state.view = "confirm";
     render();
     startBookingWatch();
+  }
+
+  // ---- actions: tournaments -----------------------------------------
+
+  function loadTournaments() {
+    state.tournamentsLoading = true;
+    render();
+    apiFetch("/tournaments/")
+      .then(function (data) {
+        state.tournamentsList = asArray(data);
+        state.tournamentsLoading = false;
+        render();
+      })
+      .catch(function (err) {
+        if (err.status === 401) return logout();
+        state.tournamentsLoading = false;
+        render();
+        showToast(err.message || "Не удалось загрузить турниры.");
+      });
+  }
+
+  function openTournamentDetail(id) {
+    state.view = "tournament-detail";
+    state.tournamentDetailLoading = true;
+    state.tournamentDetail = null;
+    render();
+
+    ensureMyTeamLoaded()
+      .then(function () {
+        return Promise.all([
+          apiFetch("/tournaments/" + id + "/"),
+          apiFetch("/tournaments/" + id + "/registrations/"),
+          apiFetch("/tournaments/" + id + "/standings/"),
+          apiFetch("/tournaments/" + id + "/matches/")
+        ]);
+      })
+      .then(function (results) {
+        state.tournamentDetail = results[0];
+        state.tournamentRegistrations = asArray(results[1]);
+        state.tournamentStandings = asArray(results[2]);
+        state.tournamentMatches = asArray(results[3]);
+        state.tournamentDetailLoading = false;
+        render();
+      })
+      .catch(function (err) {
+        if (err.status === 401) return logout();
+        state.tournamentDetailLoading = false;
+        render();
+        showToast(err.message || "Не удалось загрузить турнир.");
+      });
+  }
+
+  function submitTournamentCreate(payload) {
+    if (state.tournamentCreateBusy) return;
+    state.tournamentCreateBusy = true;
+    state.tournamentCreateError = "";
+    render();
+    apiFetch("/tournaments/", { method: "POST", body: payload })
+      .then(function () {
+        state.tournamentCreateBusy = false;
+        state.tournamentCreateOpen = false;
+        render();
+        loadTournaments();
+      })
+      .catch(function (err) {
+        state.tournamentCreateBusy = false;
+        state.tournamentCreateError = err.message;
+        render();
+      });
+  }
+
+  function registerMyTeamForTournament() {
+    if (state.tournamentRegisterBusy || !state.myTeam || !state.tournamentDetail) return;
+    state.tournamentRegisterBusy = true;
+    render();
+    apiFetch("/tournaments/" + state.tournamentDetail.id + "/registrations/", {
+      method: "POST",
+      body: { team: state.myTeam.id }
+    })
+      .then(function () {
+        state.tournamentRegisterBusy = false;
+        showToast("Команда зарегистрирована!");
+        openTournamentDetail(state.tournamentDetail.id);
+      })
+      .catch(function (err) {
+        state.tournamentRegisterBusy = false;
+        render();
+        showToast(err.message || "Не удалось зарегистрироваться.");
+      });
+  }
+
+  function cancelMyTournamentRegistration(registrationId) {
+    if (!confirm("Отменить регистрацию на турнир? Взнос вернётся.")) return;
+    apiFetch("/tournaments/registrations/" + registrationId + "/cancel/", { method: "POST" })
+      .then(function () {
+        showToast("Регистрация отменена, взнос возвращён.");
+        openTournamentDetail(state.tournamentDetail.id);
+      })
+      .catch(function (err) {
+        showToast(err.message || "Не удалось отменить регистрацию.");
+      });
   }
 
   function loadVenues() {
@@ -1754,5 +2303,6 @@
   if (state.view === "main") {
     loadVenues();
     startExtensionWatch();
+    initPushNotifications();
   }
 })();

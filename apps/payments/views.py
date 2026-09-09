@@ -20,14 +20,29 @@ logger = logging.getLogger(__name__)
 
 def _find_payment_by_order_id(pg_order_id: str) -> Payment | None:
     """
-    Наш `reference` (см. apps.bookings/apps.tournaments) — "booking-<id>"
-    или "tournament-entry-<id>", он же передаётся в FreedomPay как pg_order_id.
+    Наш `reference` (см. apps.bookings/apps.tournaments/apps.community) —
+    "booking-<id>", "tournament-entry-<id>" или "team-subscription-<id>",
+    он же передаётся в FreedomPay как pg_order_id.
     """
     if pg_order_id.startswith("booking-"):
         return Payment.objects.filter(booking_id=pg_order_id.removeprefix("booking-")).first()
     if pg_order_id.startswith("tournament-entry-"):
         return Payment.objects.filter(
             tournament_registration_id=pg_order_id.removeprefix("tournament-entry-")
+        ).first()
+    if pg_order_id.startswith("team-subscription-"):
+        # team_subscription — обычный FK (не OneToOne, см. Payment docstring):
+        # за время жизни подписки платежей несколько, но Payment.Meta.ordering
+        # = ["-created_at"] уже делает .first() однозначным — это всегда
+        # САМЫЙ ПОСЛЕДНИЙ платёж по этой подписке. Статус намеренно НЕ
+        # фильтруем (в отличие от прежней версии): если вебхук прилетит
+        # повторно уже после списания, платёж всё равно должен быть найден,
+        # чтобы вернуть "ok" — идемпотентность обеспечивает HELD-guard внутри
+        # activate_subscription_after_payment_success, а не эта функция
+        # (тот же принцип, что и booking/tournament_registration — там
+        # OneToOne и вопрос неоднозначности вообще не встаёт).
+        return Payment.objects.filter(
+            team_subscription_id=pg_order_id.removeprefix("team-subscription-"),
         ).first()
     return None
 
@@ -67,12 +82,11 @@ def freedompay_result(request):
     expire_booking(), для взноса за турнир —
     cancel_registration_after_payment_failure() (тот же безопасный
     идемпотентный путь, что и таймаут подтверждения/закрытие регистрации).
-    Для подписки команды (apps.community) — эквивалента пока нет:
-    subscribe_team() списывает синхронно сразу после hold(), не оставляя
-    окна для этого вебхука в принципе; чтобы реально работать с редиректом
-    FreedomPay, её ещё нужно переписать на ту же асинхронную схему, что и
-    бронь (см. apps/payments/freedompay.py, пункт 2 — продуктовое решение
-    по UX всего redirect-flow, не только код).
+    Для подписки команды (apps.community) — при успехе (pg_result == "1")
+    сразу списываем и продлеваем: activate_subscription_after_payment_success()
+    (в отличие от брони/турнира, у подписки нет отдельного "администратора",
+    который бы явно подтверждал — триггер списания это и есть сам успех
+    вебхука).
     """
     params = request.POST.dict()
     if not verify_signature("result", params):
@@ -96,6 +110,10 @@ def freedompay_result(request):
     if params.get("pg_result") == "1":
         logger.info("FreedomPay result: платёж %s подтверждён (hold успешен)", pg_payment_id)
         payment.save(update_fields=["external_id"])
+        if payment.team_subscription_id:
+            from apps.community.services import activate_subscription_after_payment_success
+
+            activate_subscription_after_payment_success(payment.id)
     else:
         payment.status = PaymentStatus.FAILED
         payment.save(update_fields=["external_id", "status"])

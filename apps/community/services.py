@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
@@ -157,16 +159,51 @@ def cancel_challenge(*, challenge_id: int, canceller) -> Challenge:
     return challenge
 
 
-def subscribe_team(*, team, activator) -> TeamSubscription:
+@dataclass
+class SubscriptionResult:
+    subscription: TeamSubscription
+    # Заполняется провайдерами с редиректом (FreedomPay) — клиента нужно
+    # отправить на эту страницу, чтобы реально завершить оплату. Пусто для
+    # mock/провайдеров без редиректа (списание в этом случае уже произошло
+    # синхронно, см. subscribe_team).
+    payment_redirect_url: str = ""
+
+
+def _apply_capture_result(payment: Payment, subscription: TeamSubscription, capture_result) -> None:
+    """Общая запись результата списания — переиспользуется синхронным путём
+    (subscribe_team, mock-провайдер) и асинхронным (webhook, см.
+    activate_subscription_after_payment_success)."""
+    payment.status = PaymentStatus.CAPTURED if capture_result.success else PaymentStatus.FAILED
+    if capture_result.external_id:
+        payment.external_id = capture_result.external_id
+    payment.settled_at = timezone.now()
+    payment.save(update_fields=["status", "external_id", "settled_at"])
+
+    if capture_result.success:
+        now = timezone.now()
+        base = subscription.expires_at if subscription.expires_at and subscription.expires_at > now else now
+        subscription.expires_at = base + timezone.timedelta(days=settings.TEAM_SUBSCRIPTION_DURATION_DAYS)
+        subscription.save(update_fields=["expires_at"])
+
+
+def subscribe_team(*, team, activator) -> SubscriptionResult:
     """
     Разовая оплата на TEAM_SUBSCRIPTION_DURATION_DAYS дней (см. docstring
-    TeamSubscription) — списывается сразу (hold+immediate capture), в
-    отличие от задатка за площадку здесь не нужен разрыв во времени между
-    резервированием и подтверждением. Продление — повторный вызов этой же
-    функции: срок считается от текущего expires_at, если подписка ещё
-    активна (не сгорает оставшееся время при досрочном продлении), иначе
-    от текущего момента. Каждый вызов — отдельная строка Payment (см.
-    Payment.team_subscription — обычный FK, не OneToOne).
+    TeamSubscription). Продление — повторный вызов этой же функции: срок
+    считается от текущего expires_at, если подписка ещё активна (не сгорает
+    оставшееся время при досрочном продлении), иначе от текущего момента.
+    Каждый вызов — отдельная строка Payment (см. Payment.team_subscription —
+    обычный FK, не OneToOne).
+
+    Списание происходит сразу (hold+immediate capture) для синхронных
+    провайдеров (mock — как было раньше), но если провайдер вернул
+    payment_redirect_url (FreedomPay-style hold+async-webhook, см.
+    apps/payments/freedompay.py) — списывать сейчас нельзя, пользователь ещё
+    не прошёл оплату на их странице. В этом случае платёж остаётся HELD, а
+    подписка продлевается позже, когда придёт вебхук с успехом (см.
+    activate_subscription_after_payment_success ниже) — тот же паттерн, что
+    уже применён для брони/турнирного взноса, только раньше здесь его не
+    было вообще (см. CLAUDE.md, "Реальные провайдеры").
     """
     if not TeamMembership.objects.filter(team_id=team.id, user=activator).exists():
         raise NotTeamMember("Оформить подписку может только участник команды.")
@@ -187,28 +224,42 @@ def subscribe_team(*, team, activator) -> TeamSubscription:
         status=PaymentStatus.HELD,
         external_id=hold_result.external_id,
     )
+
+    if hold_result.redirect_url:
+        return SubscriptionResult(subscription=subscription, payment_redirect_url=hold_result.redirect_url)
+
     capture_result = provider.capture(payment=payment)
-
-    # Отдельная атомарная секция только на "успех списания -> продлить
-    # подписку" — если capture провалился, FAILED-статус на payment всё
-    # равно должен сохраниться (аудит), поэтому raise ниже — уже вне atomic.
     with transaction.atomic():
-        payment.status = PaymentStatus.CAPTURED if capture_result.success else PaymentStatus.FAILED
-        if capture_result.external_id:
-            payment.external_id = capture_result.external_id
-        payment.settled_at = timezone.now()
-        payment.save(update_fields=["status", "external_id", "settled_at"])
-
-        if capture_result.success:
-            now = timezone.now()
-            base = subscription.expires_at if subscription.expires_at and subscription.expires_at > now else now
-            subscription.expires_at = base + timezone.timedelta(days=settings.TEAM_SUBSCRIPTION_DURATION_DAYS)
-            subscription.save(update_fields=["expires_at"])
+        _apply_capture_result(payment, subscription, capture_result)
 
     if not capture_result.success:
         raise SubscriptionPaymentFailed(f"Не удалось списать оплату: {capture_result.error}")
 
-    return subscription
+    return SubscriptionResult(subscription=subscription)
+
+
+def activate_subscription_after_payment_success(payment_id: int) -> None:
+    """
+    Вызывается вебхуком провайдера (apps.payments.views.freedompay_result)
+    при успешном асинхронном подтверждении hold'а — у подписки нет своего
+    "администратора", который бы явно подтверждал платёж (в отличие от
+    брони), поэтому триггер списания — сам факт успеха вебхука. Идемпотентно:
+    действует только на платёж в статусе HELD (тот же guard, что и
+    apps.bookings._settle_payment / apps.tournaments._settle_entry_payment)
+    — если он уже CAPTURED/FAILED, повторный вызов — no-op.
+    """
+    with transaction.atomic():
+        try:
+            payment = Payment.objects.select_for_update().get(pk=payment_id)
+        except Payment.DoesNotExist:
+            return
+        if payment.status != PaymentStatus.HELD or not payment.team_subscription_id:
+            return
+        subscription = TeamSubscription.objects.select_for_update().get(pk=payment.team_subscription_id)
+
+        provider = get_payment_provider(payment.strategy)
+        capture_result = provider.capture(payment=payment)
+        _apply_capture_result(payment, subscription, capture_result)
 
 
 def get_local_schedule(*, limit: int = 50) -> list[dict]:

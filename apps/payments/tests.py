@@ -23,7 +23,7 @@ from apps.venues.models import FieldSize, SurfaceType, Venue
 
 from .freedompay import FreedomPayProvider, _sign, build_xml_response, verify_signature
 from .models import Payment, PaymentStatus, PaymentStrategy
-from .providers import MockChargeAutoRefundProvider, MockHoldCaptureProvider, get_payment_provider
+from .providers import MockChargeAutoRefundProvider, MockHoldCaptureProvider, PaymentResult, get_payment_provider
 
 FREEDOMPAY_SETTINGS = dict(
     FREEDOMPAY_MERCHANT_ID="test-merchant",
@@ -301,3 +301,83 @@ class FreedomPayWebhookTests(TestCase):
         # max_teams=1 был занят отменённой регистрацией — теперь свободен.
         second = register_team(tournament=tournament, team=team_b, registrant=captain_b)
         self.assertEqual(second.status, RegistrationStatus.REGISTERED)
+
+    @override_settings(**FREEDOMPAY_SETTINGS)
+    def test_success_result_activates_team_subscription(self):
+        """
+        Раньше это был архитектурный разрыв (см. CLAUDE.md, "Реальные
+        провайдеры"): у apps.community.subscribe_team вообще не было окна
+        для этого вебхука — списывала синхронно сразу после hold(). Теперь
+        при провайдере с редиректом платёж остаётся HELD, а вот этот вебхук
+        (успех) списывает и продлевает подписку — тот же смысл, что
+        "администратор подтвердил бронь", только триггер тут не человек,
+        а сам факт успеха.
+        """
+        from apps.community.services import subscribe_team
+
+        captain = User.objects.create_user(phone="+996700900020", password="x")
+        team = create_football_team(name="Вебхук Подписка FC", creator=captain)
+
+        hold_result = PaymentResult(success=True, external_id="fp-sub-webhook", redirect_url="https://pay.example/sub-webhook")
+        capture_result = PaymentResult(success=True, external_id="fp-sub-captured")
+        # Патчим на весь тест, не только на subscribe_team(): в реальности
+        # и hold(), и capture() идут через одного и того же провайдера
+        # (webhook вызывает get_payment_provider(payment.strategy) заново,
+        # уже после subscribe_team() отработал и завершил свой with-блок).
+        with patch("apps.community.services.get_payment_provider") as mock_get_provider:
+            mock_get_provider.return_value.hold.return_value = hold_result
+            mock_get_provider.return_value.capture.return_value = capture_result
+            mock_get_provider.return_value.strategy = "hold_capture"
+
+            result = subscribe_team(team=team, activator=captain)
+
+            self.assertFalse(result.subscription.is_active)
+            payment = Payment.objects.get(team_subscription=result.subscription)
+            self.assertEqual(payment.status, PaymentStatus.HELD)
+
+            params = {"pg_order_id": f"team-subscription-{result.subscription.id}", "pg_result": "1", "pg_payment_id": "fp-sub-webhook-2"}
+            params["pg_sig"] = _sign("result", params)
+            response = self.client.post("/api/payments/freedompay/result/", params)
+
+        self.assertIn(b"ok", response.content)
+        payment.refresh_from_db()
+        self.assertEqual(payment.status, PaymentStatus.CAPTURED)
+        # external_id перезаписался результатом capture() — последним, что
+        # реально пишет activate_subscription_after_payment_success.
+        self.assertEqual(payment.external_id, "fp-sub-captured")
+        result.subscription.refresh_from_db()
+        self.assertTrue(result.subscription.is_active)
+
+    @override_settings(**FREEDOMPAY_SETTINGS)
+    def test_success_result_is_idempotent_for_subscription(self):
+        """Тот же guard HELD-only, что и для брони/турнира — повторный успешный вебхук не должен списывать дважды."""
+        from apps.community.models import TeamSubscription
+        from apps.community.services import subscribe_team
+
+        captain = User.objects.create_user(phone="+996700900021", password="x")
+        team = create_football_team(name="Вебхук Подписка FC 2", creator=captain)
+
+        hold_result = PaymentResult(success=True, external_id="fp-sub-idem", redirect_url="https://pay.example/sub-idem")
+        capture_result = PaymentResult(success=True, external_id="fp-sub-idem-captured")
+        with patch("apps.community.services.get_payment_provider") as mock_get_provider:
+            mock_get_provider.return_value.hold.return_value = hold_result
+            mock_get_provider.return_value.capture.return_value = capture_result
+            mock_get_provider.return_value.strategy = "hold_capture"
+
+            result = subscribe_team(team=team, activator=captain)
+
+            params = {"pg_order_id": f"team-subscription-{result.subscription.id}", "pg_result": "1"}
+            params["pg_sig"] = _sign("result", params)
+            self.client.post("/api/payments/freedompay/result/", params)
+
+            expires_after_first = TeamSubscription.objects.get(pk=result.subscription.id).expires_at
+
+            # Повторная доставка того же вебхука (частая практика провайдеров) —
+            # платёж уже CAPTURED, activate_subscription_after_payment_success
+            # должна быть no-op (иначе подписка продлилась бы второй раз бесплатно).
+            response = self.client.post("/api/payments/freedompay/result/", params)
+
+        self.assertIn(b"ok", response.content)
+
+        expires_after_second = TeamSubscription.objects.get(pk=result.subscription.id).expires_at
+        self.assertEqual(expires_after_first, expires_after_second)

@@ -126,12 +126,19 @@ class TeamSubscribeView(APIView):
         except Team.DoesNotExist:
             raise NotFound("Команда не найдена.")
         try:
-            subscription = subscribe_team(team=team, activator=request.user)
+            result = subscribe_team(team=team, activator=request.user)
         except NotTeamMember as exc:
             raise PermissionDenied(str(exc))
         except SubscriptionPaymentFailed as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_402_PAYMENT_REQUIRED)
-        return Response(TeamSubscriptionSerializer(subscription).data, status=status.HTTP_201_CREATED)
+
+        data = TeamSubscriptionSerializer(result.subscription).data
+        if result.payment_redirect_url:
+            # Провайдер с редиректом (FreedomPay) — клиента нужно отправить
+            # туда завершить оплату, подписка продлится позже по вебхуку
+            # (см. apps.community.services.activate_subscription_after_payment_success).
+            data["payment_redirect_url"] = result.payment_redirect_url
+        return Response(data, status=status.HTTP_201_CREATED)
 
 
 class TeamExtendedStatsView(APIView):

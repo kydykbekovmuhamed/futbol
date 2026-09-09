@@ -5,10 +5,18 @@
 аккаунта Infobip свой базовый URL, выдаётся при регистрации). Пока не
 заданы — используется MockNotificationProvider.
 
-Проверено по официальной документации Infobip (2026-09-09):
-- SMS (`sms/2/text/advanced`): запрос/ответ подтверждены целиком —
-  https://www.infobip.com/docs/sms/sms-over-api, формат ответа
-  {"messages": [{"messageId": ..., "status": {"groupName": "PENDING", ...}}]}.
+Проверено по официальной документации Infobip:
+- SMS (`sms/3/messages`, актуальная версия API на 2026-09-10 — см.
+  https://www.infobip.com/docs/tutorials/send-your-first-sms-message-using-infobip-api):
+  запрос `{"messages": [{"sender": ..., "destinations": [...], "content": {"text": ...}}]}`,
+  ответ {"bulkId": ..., "messages": [{"messageId": ..., "status": {"groupName": "PENDING", ...}, ...}]}.
+  **Исправлено 2026-09-10**: изначально (2026-09-09) реализовал через
+  `sms/2/text/advanced` (плоское поле `"text"`, `"from"` вместо `"sender"`) —
+  пользователь прислал актуальный пример кода из консоли Infobip с
+  `sms/3/messages`, проверил по официальному туториалу и поправил. Урок:
+  даже проверенная "по документации" интеграция может устареть за день —
+  сверяться перед реальным включением в проде, не полагаться на то, что
+  проверено один раз.
 - Звонок (`tts/3/advanced`): запрос подтверждён, включая DTMF-параметры
   (`maxDtmf`, `dtmfTimeout`) — Infobip зачитывает текст и умеет принимать
   нажатие клавиши.
@@ -53,13 +61,13 @@ class InfobipNotificationProvider(NotificationProvider):
         raise NotImplementedError("Infobip здесь не отправляет push — см. apps.notifications.firebase.")
 
     def send_sms(self, *, phone: str, text: str) -> NotificationResult:
-        url = f"{settings.INFOBIP_BASE_URL.rstrip('/')}/sms/2/text/advanced"
+        url = f"{settings.INFOBIP_BASE_URL.rstrip('/')}/sms/3/messages"
         payload = {
             "messages": [
                 {
-                    "from": settings.INFOBIP_SENDER,
+                    "sender": settings.INFOBIP_SENDER,
                     "destinations": [{"to": phone.lstrip("+")}],
-                    "text": text,
+                    "content": {"text": text},
                 }
             ]
         }

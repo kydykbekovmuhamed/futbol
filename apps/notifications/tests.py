@@ -121,7 +121,10 @@ class InfobipProviderTests(TestCase):
         self.assertEqual(result.external_id, "abc123")
         sent_json = mock_post.call_args[1]["json"]
         self.assertEqual(sent_json["messages"][0]["destinations"][0]["to"], "996700700001")
-        self.assertEqual(sent_json["messages"][0]["text"], "Код: 123456")
+        self.assertEqual(sent_json["messages"][0]["content"]["text"], "Код: 123456")
+        self.assertEqual(sent_json["messages"][0]["sender"], "FutbolApp")
+        called_url = mock_post.call_args[0][0]
+        self.assertTrue(called_url.endswith("/sms/3/messages"))
 
     @override_settings(**INFOBIP_SETTINGS)
     @patch("apps.notifications.infobip.requests.post")

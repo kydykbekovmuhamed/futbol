@@ -69,6 +69,8 @@ input,select{font-family:inherit;}
   color:var(--text);padding:13px 14px;font-size:15px;outline:none;
 }
 .text-input:focus{border-color:var(--lime);}
+.text-input[type="datetime-local"],.text-input[type="date"],.text-input[type="number"]{color-scheme:dark;}
+.text-input::-webkit-calendar-picker-indicator{filter:invert(1);cursor:pointer;}
 .select-pill{
   appearance:none;-webkit-appearance:none;
   background-color:rgba(255,255,255,0.1);
