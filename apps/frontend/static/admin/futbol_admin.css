@@ -1,0 +1,289 @@
+/*
+  Редизайн стандартной Django admin-панели под фирменный стиль "Футбол" —
+  тот же дизайн-язык, что и в apps/frontend/static/frontend/style.css
+  (тёмный фон, лайм-акцент, Big Shoulders Display + Space Grotesk).
+
+  Реализовано по мокапу из Claude Design (дашборд/список/карточка) через
+  CSS-оверрайд поверх штатной вёрстки Django admin (классы #header,
+  #nav-sidebar, .results, fieldset.module, #changelist-filter и т.д. —
+  стандартные, специально не трогали HTML-структуру там, где хватало CSS),
+  плюс templates/admin/base_site.html и templates/admin/index.html —
+  см. их докстринги. Цветные статус-пилюли в списке броней — уже
+  Python-код (apps/bookings/admin.py::status_badge), CSS их не может
+  сделать сам, значения статуса нужно знать на сервере.
+
+  НЕ реализовано из мокапа: строка глобального поиска в топ-баре — в
+  реальном Django admin нет готовой инфраструктуры полнотекстового поиска
+  по всем моделям сразу (только per-модельный поиск на страницах списков,
+  он уже есть и работает), делать такое отдельной фичей не стали —
+  честно опущено, а не подделано декоративным нерабочим полем.
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+:root{
+  --bg:oklch(0.16 0.014 55);
+  --surface:oklch(0.215 0.017 55);
+  --surface2:oklch(0.27 0.019 55);
+  --text:oklch(0.97 0.008 90);
+  --muted:oklch(0.66 0.02 80);
+  --lime:oklch(0.87 0.22 126);
+  --lime-ink:oklch(0.18 0.03 126);
+  --orange:oklch(0.68 0.19 38);
+  --red:oklch(0.62 0.21 25);
+  --line:oklch(1 0 0 / 0.09);
+}
+
+/* ---------- общий сброс ---------- */
+body{
+  background:var(--bg) !important;
+  color:var(--text) !important;
+  font-family:'Space Grotesk',sans-serif !important;
+  font-size:13.5px;
+}
+a:link, a:visited{color:var(--lime);}
+a:focus, a:hover{color:var(--lime);}
+h1,h2,h3,h4{font-family:'Big Shoulders Display',sans-serif;font-weight:900;letter-spacing:0.01em;color:var(--text);}
+hr{border-color:var(--line);}
+
+/* ---------- шапка ---------- */
+#header{
+  background:var(--surface) !important;
+  color:var(--text);
+  border-bottom:1px solid var(--line);
+  padding:16px 28px;
+}
+#branding h1, #branding h1 a{
+  font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:22px;
+  color:var(--text) !important;letter-spacing:0.01em;
+}
+/* Кастомный usertools (аватар-чип) — см. block usertools в base_site.html,
+   заменяет штатный текстовый "Добро пожаловать, X. Открыть сайт / ..." */
+#user-tools{
+  display:flex !important;align-items:center;color:var(--muted);font-size:12.5px;
+  padding:0 !important;
+}
+#user-tools a{color:var(--muted) !important;font-weight:600;text-decoration:none;}
+#user-tools a:hover{color:var(--lime) !important;}
+#user-tools form#logout-form{display:inline;margin:0;}
+#user-tools form#logout-form button{
+  background:none !important;border:none !important;color:var(--muted) !important;
+  cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:600;padding:0 !important;
+}
+#user-tools form#logout-form button:hover{color:var(--lime) !important;}
+
+/* ---------- сайдбар навигации (#nav-sidebar, Django 4+) ---------- */
+#nav-sidebar{
+  background:var(--surface) !important;
+  border-right:1px solid var(--line);
+}
+/* Строка фильтра сайдбара и точечные "Добавить"-ссылки у каждой модели —
+   в мокапе их нет, убраны для точного соответствия (сам функционал добавления
+   объекта никуда не делся — доступен со страницы списка/через "+ Добавить"
+   у карточки на дашборде). */
+#nav-sidebar #nav-filter{display:none;}
+#nav-sidebar .addlink{display:none;}
+#nav-sidebar .module{background:transparent;border:none;}
+#nav-sidebar caption{
+  background:transparent !important;
+  padding:16px 18px 6px !important;
+}
+#nav-sidebar caption a.section{
+  font-size:10.5px;font-weight:700;letter-spacing:0.08em;color:var(--muted) !important;
+  text-transform:uppercase;
+}
+#nav-sidebar table tr th, #nav-sidebar table tr td{
+  border:none;background:transparent;padding:0;
+}
+#nav-sidebar table tr th a, #nav-sidebar table tr td a{
+  display:flex;align-items:center;gap:9px;padding:8px 18px 8px 20px;color:var(--muted) !important;
+  font-size:13px;font-weight:600;border-left:2px solid transparent;
+}
+#nav-sidebar table tr th a::before{
+  content:"";width:5px;height:5px;border-radius:50%;background:currentColor;flex:0 0 auto;
+}
+#nav-sidebar table tr th a:hover, #nav-sidebar table tr td a:hover{
+  color:var(--text) !important;background:oklch(1 0 0 / 0.04);
+}
+#nav-sidebar table tr.current-model th a, #nav-sidebar table tr.current-model td a,
+#nav-sidebar table tr th a.active{
+  color:var(--text) !important;background:oklch(1 0 0 / 0.04);border-left-color:var(--lime);
+}
+#nav-sidebar .current-app caption a.section{color:var(--lime) !important;}
+#nav-filter input{
+  background:var(--surface2);border:1px solid var(--line);color:var(--text);
+  border-radius:8px;
+}
+
+/* ---------- контент/футер ---------- */
+#content{padding:24px 28px;}
+#footer{background:transparent;color:var(--muted);}
+.breadcrumbs{
+  background:transparent !important;color:var(--muted) !important;
+  border-bottom:1px solid var(--line);padding:12px 28px !important;font-size:12px;
+}
+.breadcrumbs a{color:var(--muted) !important;font-weight:600;}
+.breadcrumbs a:hover{color:var(--lime) !important;}
+
+/* ---------- карточки/модули (dashboard, fieldsets) ---------- */
+.module, fieldset.module, .dashboard .module{
+  background:var(--surface) !important;
+  border:1px solid var(--line) !important;
+  border-radius:14px !important;
+  overflow:hidden;
+}
+.module h2, .module caption, fieldset.module h2{
+  background:transparent !important;
+  color:var(--text) !important;
+  font-family:'Space Grotesk',sans-serif !important;
+  font-weight:700 !important;font-size:14px !important;letter-spacing:0 !important;
+  padding:16px 18px !important;border-bottom:1px solid var(--line);
+}
+.dashboard .module table th, .dashboard .module table td{
+  border-bottom:1px solid var(--line);padding:11px 18px;
+}
+.dashboard .module table th a{color:var(--text) !important;font-weight:600;}
+
+/* ---------- статус-пилюли (значения проставляет .status_badge) ---------- */
+.status-pill{
+  display:inline-flex;align-items:center;padding:3px 9px;border-radius:999px;
+  font-size:11.5px;font-weight:700;white-space:nowrap;
+}
+.status-pill--lime{background:oklch(0.87 0.22 126 / 0.16);color:var(--lime);}
+.status-pill--orange{background:oklch(0.68 0.19 38 / 0.16);color:var(--orange);}
+.status-pill--red{background:oklch(0.62 0.21 25 / 0.16);color:var(--red);}
+.status-pill--muted{background:oklch(1 0 0 / 0.08);color:var(--muted);}
+
+/* ---------- таблицы списков ---------- */
+#changelist{background:transparent;}
+#changelist .results, #changelist table{
+  background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;
+}
+#changelist table thead th{
+  background:transparent !important;color:var(--muted) !important;
+  font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;
+  border-bottom:1px solid var(--line) !important;padding:11px 16px !important;
+}
+#changelist table thead th a{color:var(--muted) !important;}
+#changelist table tbody th, #changelist table tbody td{
+  border-bottom:1px solid var(--line) !important;padding:12px 16px !important;
+  background:transparent !important;color:var(--text) !important;
+}
+#changelist table tbody tr:hover th, #changelist table tbody tr:hover td{
+  background:oklch(1 0 0 / 0.025) !important;
+}
+#changelist table tbody tr:last-child th, #changelist table tbody tr:last-child td{border-bottom:none !important;}
+#changelist table tbody th a{color:var(--text) !important;font-weight:600;}
+
+#toolbar{
+  background:var(--surface) !important;border:1px solid var(--line);border-radius:12px;
+  padding:10px 14px !important;margin-bottom:14px;
+}
+#toolbar form#changelist-search input[type="text"]{
+  background:var(--surface2);border:1px solid var(--line);color:var(--text);
+  border-radius:8px;padding:7px 10px;
+}
+#toolbar form#changelist-search input[type="submit"], .button, input[type="submit"], input[type="button"]{
+  background:var(--surface2);color:var(--text);border:1px solid var(--line);
+  border-radius:8px;padding:7px 13px;font-weight:600;font-family:inherit;
+}
+
+/* ---------- фильтры справа ---------- */
+#changelist-filter{
+  background:var(--surface) !important;border:1px solid var(--line);border-radius:14px;
+  padding-bottom:8px;
+}
+#changelist-filter h2, #changelist-filter h3{
+  background:transparent !important;color:var(--text) !important;
+  font-family:'Space Grotesk',sans-serif !important;font-weight:700 !important;
+  font-size:11px !important;text-transform:uppercase;letter-spacing:0.04em;
+  padding:14px 16px 6px !important;border:none !important;
+}
+#changelist-filter ul{margin:0;padding:0;}
+#changelist-filter li{list-style:none;padding:0;}
+#changelist-filter li a{
+  display:block;padding:6px 16px;color:var(--muted) !important;font-size:12.5px;
+}
+#changelist-filter li.selected a, #changelist-filter li a:hover{color:var(--lime) !important;font-weight:700;}
+
+.paginator{
+  background:transparent !important;color:var(--muted) !important;padding:14px 2px !important;
+  border:none !important;
+}
+.paginator a{
+  background:var(--surface) !important;border:1px solid var(--line) !important;color:var(--text) !important;
+  border-radius:8px;padding:5px 11px !important;
+}
+.paginator .this-page{
+  background:var(--lime) !important;color:var(--lime-ink) !important;font-weight:700;
+  border-radius:8px;padding:5px 11px;
+}
+
+/* ---------- формы редактирования ---------- */
+.form-row{border-bottom:1px solid var(--line) !important;padding:12px 18px !important;}
+.form-row:last-child{border-bottom:none !important;}
+label{color:var(--muted) !important;font-size:11.5px;font-weight:600;}
+input, select, textarea{
+  background:var(--surface2) !important;color:var(--text) !important;
+  border:1px solid var(--line) !important;border-radius:9px !important;
+  padding:9px 11px !important;font-family:inherit !important;
+}
+input:focus, select:focus, textarea:focus{border-color:var(--lime) !important;outline:none;}
+.checkbox-row label{color:var(--text) !important;}
+
+.submit-row{
+  background:transparent !important;border:none !important;padding:16px 0 0 !important;
+}
+.submit-row input.default, .submit-row input[type="submit"]{
+  background:var(--lime) !important;color:var(--lime-ink) !important;
+  font-weight:700 !important;border:none !important;border-radius:10px !important;
+}
+.submit-row .deletelink{
+  background:transparent !important;color:var(--red) !important;
+  border:1px solid var(--line) !important;border-radius:10px;
+}
+
+/* ---------- инлайны ---------- */
+.inline-group{background:transparent;}
+.inline-group .tabular{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;}
+.inline-group h2, .inline-group .inline-heading{
+  background:transparent !important;color:var(--text) !important;font-weight:700 !important;
+  padding:16px 18px !important;border-bottom:1px solid var(--line);
+}
+.inline-group table th, .inline-group table td{
+  border-bottom:1px solid var(--line) !important;background:transparent !important;color:var(--text) !important;
+}
+
+/* ---------- сообщения ---------- */
+.messagelist li{
+  background:var(--surface) !important;border:1px solid var(--line);border-radius:10px;
+  color:var(--text) !important;
+}
+.messagelist li.success{border-color:var(--lime);}
+.messagelist li.error{border-color:var(--red);}
+
+/* ---------- объект-тулы (кнопка "Добавить") ---------- */
+.object-tools a{
+  background:var(--lime) !important;color:var(--lime-ink) !important;
+  font-weight:700 !important;border-radius:9px !important;
+}
+
+/* ---------- дашборд: карточки-статистика (см. templates/admin/index.html) ---------- */
+.futbol-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px;}
+.futbol-stat-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;}
+.futbol-stat-label{font-size:11.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:0.04em;}
+.futbol-stat-num{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:34px;line-height:1;margin-top:6px;color:var(--text);}
+.futbol-stat-num.lime{color:var(--lime);}
+.futbol-stat-sub{color:var(--muted);font-size:12px;margin-top:4px;}
+
+/* Окно уже дашборд-мокапа (1440px) — на более узких экранах карточки и
+   колонки "последние брони / требует внимания" складываются, а не давят
+   таблицу до нечитаемого состояния (это и было найденным багом —
+   таблица бронирований сжималась и текст в ячейках переносился/обрезался). */
+@media (max-width:1180px){
+  .futbol-stats{grid-template-columns:repeat(2,1fr);}
+  .futbol-dashboard-grid{grid-template-columns:1fr !important;}
+}
+@media (max-width:640px){
+  .futbol-stats{grid-template-columns:1fr;}
+}

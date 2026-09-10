@@ -17,12 +17,16 @@ class DeviceToken(models.Model):
     приложения (см. apps/notifications/views.py).
     """
 
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="device_tokens")
-    token = models.CharField(max_length=255, unique=True)
-    platform = models.CharField(max_length=10, choices=DevicePlatform.choices, default=DevicePlatform.ANDROID)
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    last_seen_at = models.DateTimeField(auto_now=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="device_tokens", verbose_name="Пользователь"
+    )
+    token = models.CharField("Токен", max_length=255, unique=True)
+    platform = models.CharField(
+        "Платформа", max_length=10, choices=DevicePlatform.choices, default=DevicePlatform.ANDROID
+    )
+    is_active = models.BooleanField("Активен", default=True)
+    created_at = models.DateTimeField("Создан", auto_now_add=True)
+    last_seen_at = models.DateTimeField("Последняя активность", auto_now=True)
 
     class Meta:
         verbose_name = "Токен устройства"
@@ -54,14 +58,21 @@ class NotificationLog(models.Model):
     CONFIRMED_VIA — нужно для будущей аналитики "какой канал эффективнее".
     """
 
-    booking = models.ForeignKey("bookings.Booking", on_delete=models.CASCADE, related_name="notifications")
-    recipient = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notifications_received"
+    booking = models.ForeignKey(
+        "bookings.Booking", on_delete=models.CASCADE, related_name="notifications", verbose_name="Бронь"
     )
-    channel = models.CharField(max_length=10, choices=NotificationChannel.choices)
-    status = models.CharField(max_length=20, choices=NotificationStatus.choices, default=NotificationStatus.SENT)
-    sent_at = models.DateTimeField(auto_now_add=True)
-    responded_at = models.DateTimeField(null=True, blank=True)
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="notifications_received",
+        verbose_name="Получатель",
+    )
+    channel = models.CharField("Канал", max_length=10, choices=NotificationChannel.choices)
+    status = models.CharField(
+        "Статус", max_length=20, choices=NotificationStatus.choices, default=NotificationStatus.SENT
+    )
+    sent_at = models.DateTimeField("Отправлено", auto_now_add=True)
+    responded_at = models.DateTimeField("Отвечено", null=True, blank=True)
 
     class Meta:
         verbose_name = "Уведомление"

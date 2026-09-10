@@ -14,16 +14,16 @@ class Team(models.Model):
     отнесён в roadmap (раздел 7) к банку идей на будущее, не к Этапу 2.
     """
 
-    name = models.CharField(max_length=255, unique=True)
+    name = models.CharField("Название", max_length=255, unique=True)
     district = models.CharField("Район", max_length=255, blank=True)
-    description = models.TextField(blank=True)
+    description = models.TextField("Описание", blank=True)
 
-    rating_points = models.IntegerField(default=0)
-    wins = models.PositiveIntegerField(default=0)
-    draws = models.PositiveIntegerField(default=0)
-    losses = models.PositiveIntegerField(default=0)
+    rating_points = models.IntegerField("Рейтинговые очки", default=0)
+    wins = models.PositiveIntegerField("Победы", default=0)
+    draws = models.PositiveIntegerField("Ничьи", default=0)
+    losses = models.PositiveIntegerField("Поражения", default=0)
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField("Создана", auto_now_add=True)
 
     class Meta:
         verbose_name = "Команда"
@@ -62,10 +62,15 @@ class Team(models.Model):
 
 
 class TeamMembership(models.Model):
-    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="memberships")
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="team_memberships")
-    role = models.CharField(max_length=20, choices=TeamRole.choices, default=TeamRole.MEMBER)
-    joined_at = models.DateTimeField(auto_now_add=True)
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="memberships", verbose_name="Команда")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="team_memberships",
+        verbose_name="Пользователь",
+    )
+    role = models.CharField("Роль", max_length=20, choices=TeamRole.choices, default=TeamRole.MEMBER)
+    joined_at = models.DateTimeField("Вступил", auto_now_add=True)
 
     class Meta:
         verbose_name = "Участник команды"
@@ -97,18 +102,28 @@ class Match(models.Model):
     """
 
     booking = models.OneToOneField(
-        "bookings.Booking", on_delete=models.SET_NULL, null=True, blank=True, related_name="match"
+        "bookings.Booking",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="match",
+        verbose_name="Бронь",
     )
-    home_team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="home_matches")
-    away_team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="away_matches")
-    status = models.CharField(max_length=20, choices=MatchStatus.choices, default=MatchStatus.SCHEDULED)
-    home_score = models.PositiveSmallIntegerField(null=True, blank=True)
-    away_score = models.PositiveSmallIntegerField(null=True, blank=True)
+    home_team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="home_matches", verbose_name="Хозяева")
+    away_team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="away_matches", verbose_name="Гости")
+    status = models.CharField("Статус", max_length=20, choices=MatchStatus.choices, default=MatchStatus.SCHEDULED)
+    home_score = models.PositiveSmallIntegerField("Счёт хозяев", null=True, blank=True)
+    away_score = models.PositiveSmallIntegerField("Счёт гостей", null=True, blank=True)
     reported_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="Внёс результат",
     )
-    played_at = models.DateTimeField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    played_at = models.DateTimeField("Сыгран", null=True, blank=True)
+    created_at = models.DateTimeField("Создан", auto_now_add=True)
 
     class Meta:
         verbose_name = "Матч"

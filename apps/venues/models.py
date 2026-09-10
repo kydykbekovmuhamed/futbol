@@ -26,26 +26,27 @@ class VenueRole(models.TextChoices):
 
 
 class Venue(models.Model):
-    name = models.CharField(max_length=255)
+    name = models.CharField("Название", max_length=255)
     district = models.CharField("Район", max_length=255, blank=True)
-    address = models.CharField(max_length=255)
-    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    surface_type = models.CharField(max_length=20, choices=SurfaceType.choices)
-    field_size = models.CharField(max_length=10, choices=FieldSize.choices)
-    price_per_hour = models.DecimalField(max_digits=10, decimal_places=2)
-    description = models.TextField(blank=True)
+    address = models.CharField("Адрес", max_length=255)
+    latitude = models.DecimalField("Широта", max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField("Долгота", max_digits=9, decimal_places=6, null=True, blank=True)
+    surface_type = models.CharField("Покрытие", max_length=20, choices=SurfaceType.choices)
+    field_size = models.CharField("Размер поля", max_length=10, choices=FieldSize.choices)
+    price_per_hour = models.DecimalField("Цена за час", max_digits=10, decimal_places=2)
+    description = models.TextField("Описание", blank=True)
     subscription_tier = models.CharField(
-        max_length=20, choices=SubscriptionTier.choices, default=SubscriptionTier.BASIC
+        "Тариф подписки", max_length=20, choices=SubscriptionTier.choices, default=SubscriptionTier.BASIC
     )
     commission_percent = models.DecimalField(
+        "Комиссия платформы, %",
         max_digits=5,
         decimal_places=2,
         default=settings.DEFAULT_VENUE_COMMISSION_PERCENT,
         help_text="Комиссия платформы с онлайн-задатка по этой площадке (roadmap, раздел 3).",
     )
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField("Активна", default=True)
+    created_at = models.DateTimeField("Создана", auto_now_add=True)
 
     class Meta:
         verbose_name = "Площадка"
@@ -70,13 +71,16 @@ class VenueMembership(models.Model):
     значением choices, без переделки структуры таблицы.
     """
 
-    venue = models.ForeignKey(Venue, on_delete=models.CASCADE, related_name="memberships")
+    venue = models.ForeignKey(Venue, on_delete=models.CASCADE, related_name="memberships", verbose_name="Площадка")
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="venue_memberships"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="venue_memberships",
+        verbose_name="Пользователь",
     )
-    role = models.CharField(max_length=30, choices=VenueRole.choices, default=VenueRole.VENUE_ADMIN)
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    role = models.CharField("Роль", max_length=30, choices=VenueRole.choices, default=VenueRole.VENUE_ADMIN)
+    is_active = models.BooleanField("Активно", default=True)
+    created_at = models.DateTimeField("Создано", auto_now_add=True)
 
     class Meta:
         verbose_name = "Назначение на площадку"

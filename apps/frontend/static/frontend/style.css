@@ -10,6 +10,8 @@
   --orange-ink:oklch(0.15 0.02 40);
   --red:oklch(0.62 0.21 25);
   --line:oklch(1 0 0 / 0.09);
+  --dot:oklch(0.12 0.016 55);
+  --turf:oklch(0.5 0.14 132);
 }
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;background:var(--bg);}
@@ -17,8 +19,13 @@ body{
   font-family:'Space Grotesk',sans-serif;
   color:var(--text);
   min-height:100vh;
-  background-image:radial-gradient(oklch(1 0 0 / 0.05) 0.6px, transparent 0.6px);
-  background-size:3px 3px;
+  /* Едва заметные полосы газона (скошенное поле) под общим фоном + прежняя
+     мелкая зернистость поверх — оба слоя очень тихие, чтобы не мешать
+     читаемости текста, который в большинстве экранов лежит прямо на фоне. */
+  background-image:
+    radial-gradient(oklch(1 0 0 / 0.05) 0.6px, transparent 0.6px),
+    repeating-linear-gradient(100deg, transparent 0 40px, oklch(0.87 0.22 126 / 0.05) 40px 41.5px, transparent 41.5px 80px);
+  background-size:3px 3px, auto;
 }
 a{color:var(--lime);text-decoration:none;}
 button{font-family:inherit;}
@@ -35,6 +42,27 @@ input,select{font-family:inherit;}
 }
 
 .disp{font-family:'Big Shoulders Display',sans-serif;font-weight:900;letter-spacing:0.01em;}
+
+/* Точки-текстура мяча внутри букв заголовков "ФУТБОЛ"/"НА КАКОЕ ВРЕМЯ?" —
+   буквы остаются белыми, поверх накладывается мелкая чёрная точечная
+   решётка, вырезанная по форме букв через background-clip:text — как белая
+   панель мяча с чёрными точками. Шаг решётки в em — плотность точек
+   одинаковая и на 22px-шапке, и на 36-40px заголовке, пересчитывать под
+   каждый размер не надо. Газон (--turf) — на фоне всей страницы, см. body. */
+.dot-fill{
+  /* Два слоя точек со сдвигом в шахматном порядке (как соты/панели мяча),
+     а не ровная квадратная сетка — так больше похоже на реальный узор мяча. */
+  background-image:
+    radial-gradient(circle, var(--dot) 0.02em, transparent 0.034em),
+    radial-gradient(circle, var(--dot) 0.02em, transparent 0.034em),
+    linear-gradient(var(--text), var(--text));
+  background-size:0.09em 0.09em, 0.09em 0.09em, 100% 100%;
+  background-position:0 0, 0.045em 0.045em, 0 0;
+  background-repeat:repeat, repeat, no-repeat;
+  -webkit-background-clip:text;
+  background-clip:text;
+  color:transparent;
+}
 .icon{stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
 
 .pill{
@@ -89,6 +117,26 @@ input,select{font-family:inherit;}
   background:var(--surface2);color:var(--text);border:1px solid var(--line);
   padding:12px 18px;border-radius:12px;font-size:13px;max-width:90%;text-align:center;
   box-shadow:0 10px 30px rgba(0,0,0,0.4);z-index:50;
+}
+
+/* Полоса за шапкой ("ФУТБОЛ") и главным заголовком ("НА КАКОЕ ВРЕМЯ?").
+   Ещё одно присланное пользователем фото — пустые ворота на стадионе
+   ночью, ярко-зелёный газон (заменило предыдущее фото игрока — тот же
+   файл apps/frontend/static/frontend/img/pitch-banner-photo.jpg
+   перезаписан). Фото само по себе очень яркое (прожекторы, белая сетка
+   ворот) — градиент затемнения сделан заметно сильнее, чем для прошлых
+   фото, иначе белый текст заголовков терялся бы на такой яркости.
+   Предыдущие варианты (фото игрока, газонные SVG/JPG) оставлены в репо
+   неиспользуемыми. Только эта полоса — остальной экран остаётся тёмным,
+   как раньше. */
+.pitch-banner{
+  position:relative;
+  overflow:hidden;
+  border-radius:0 0 26px 26px;
+  background:
+    linear-gradient(180deg, oklch(0.08 0.02 30 / 0.45) 0%, oklch(0.06 0.02 30 / 0.3) 55%, oklch(0.06 0.02 30 / 0.55) 100%),
+    url("img/pitch-banner-photo.jpg") center 30% / cover no-repeat,
+    oklch(0.16 0.03 140);
 }
 
 .top-bar{display:flex;align-items:center;justify-content:space-between;padding:26px 20px 6px;}

@@ -11,18 +11,29 @@ class OpponentRequestStatus(models.TextChoices):
 class OpponentRequest(models.Model):
     """roadmap, Этап 2: "Поиск соперника" — команда уже забронировала слот и ищет, с кем сыграть."""
 
-    team = models.ForeignKey("teams.Team", on_delete=models.CASCADE, related_name="opponent_requests")
-    booking = models.OneToOneField("bookings.Booking", on_delete=models.CASCADE, related_name="opponent_request")
-    message = models.CharField(max_length=500, blank=True)
+    team = models.ForeignKey(
+        "teams.Team", on_delete=models.CASCADE, related_name="opponent_requests", verbose_name="Команда"
+    )
+    booking = models.OneToOneField(
+        "bookings.Booking", on_delete=models.CASCADE, related_name="opponent_request", verbose_name="Бронь"
+    )
+    message = models.CharField("Сообщение", max_length=500, blank=True)
     status = models.CharField(
-        max_length=20, choices=OpponentRequestStatus.choices, default=OpponentRequestStatus.OPEN
+        "Статус", max_length=20, choices=OpponentRequestStatus.choices, default=OpponentRequestStatus.OPEN
     )
     matched_team = models.ForeignKey(
-        "teams.Team", on_delete=models.SET_NULL, null=True, blank=True, related_name="matched_opponent_requests"
+        "teams.Team",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="matched_opponent_requests",
+        verbose_name="Команда-соперник",
     )
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+")
-    created_at = models.DateTimeField(auto_now_add=True)
-    matched_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+", verbose_name="Создал"
+    )
+    created_at = models.DateTimeField("Создана", auto_now_add=True)
+    matched_at = models.DateTimeField("Найден соперник", null=True, blank=True)
 
     class Meta:
         verbose_name = "Заявка на поиск соперника"
@@ -41,13 +52,21 @@ class PlayerRequestStatus(models.TextChoices):
 class PlayerRequest(models.Model):
     """roadmap, Этап 2: "Поиск игрока в состав" — команде не хватает игроков на конкретную игру."""
 
-    team = models.ForeignKey("teams.Team", on_delete=models.CASCADE, related_name="player_requests")
-    booking = models.ForeignKey("bookings.Booking", on_delete=models.CASCADE, related_name="player_requests")
-    spots_needed = models.PositiveSmallIntegerField(default=1)
-    message = models.CharField(max_length=500, blank=True)
-    status = models.CharField(max_length=20, choices=PlayerRequestStatus.choices, default=PlayerRequestStatus.OPEN)
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+")
-    created_at = models.DateTimeField(auto_now_add=True)
+    team = models.ForeignKey(
+        "teams.Team", on_delete=models.CASCADE, related_name="player_requests", verbose_name="Команда"
+    )
+    booking = models.ForeignKey(
+        "bookings.Booking", on_delete=models.CASCADE, related_name="player_requests", verbose_name="Бронь"
+    )
+    spots_needed = models.PositiveSmallIntegerField("Нужно игроков", default=1)
+    message = models.CharField("Сообщение", max_length=500, blank=True)
+    status = models.CharField(
+        "Статус", max_length=20, choices=PlayerRequestStatus.choices, default=PlayerRequestStatus.OPEN
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+", verbose_name="Создал"
+    )
+    created_at = models.DateTimeField("Создана", auto_now_add=True)
 
     class Meta:
         verbose_name = "Заявка на поиск игрока"
@@ -65,13 +84,20 @@ class ApplicationStatus(models.TextChoices):
 
 
 class PlayerApplication(models.Model):
-    request = models.ForeignKey(PlayerRequest, on_delete=models.CASCADE, related_name="applications")
-    applicant = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="player_applications"
+    request = models.ForeignKey(
+        PlayerRequest, on_delete=models.CASCADE, related_name="applications", verbose_name="Заявка"
     )
-    status = models.CharField(max_length=20, choices=ApplicationStatus.choices, default=ApplicationStatus.PENDING)
-    created_at = models.DateTimeField(auto_now_add=True)
-    decided_at = models.DateTimeField(null=True, blank=True)
+    applicant = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="player_applications",
+        verbose_name="Соискатель",
+    )
+    status = models.CharField(
+        "Статус", max_length=20, choices=ApplicationStatus.choices, default=ApplicationStatus.PENDING
+    )
+    created_at = models.DateTimeField("Создана", auto_now_add=True)
+    decided_at = models.DateTimeField("Решение принято", null=True, blank=True)
 
     class Meta:
         verbose_name = "Заявка игрока"

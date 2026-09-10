@@ -41,7 +41,12 @@ class Payment(models.Model):
     """
 
     booking = models.OneToOneField(
-        "bookings.Booking", on_delete=models.CASCADE, related_name="payment", null=True, blank=True
+        "bookings.Booking",
+        on_delete=models.CASCADE,
+        related_name="payment",
+        null=True,
+        blank=True,
+        verbose_name="Бронь",
     )
     tournament_registration = models.OneToOneField(
         "tournaments.TournamentRegistration",
@@ -49,6 +54,7 @@ class Payment(models.Model):
         related_name="payment",
         null=True,
         blank=True,
+        verbose_name="Регистрация на турнир",
     )
     team_subscription = models.ForeignKey(
         "community.TeamSubscription",
@@ -56,13 +62,17 @@ class Payment(models.Model):
         related_name="payments",
         null=True,
         blank=True,
+        verbose_name="Подписка команды",
     )
-    provider = models.CharField(max_length=30, choices=PaymentProviderName.choices, default=PaymentProviderName.MOCK)
-    strategy = models.CharField(max_length=30, choices=PaymentStrategy.choices)
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
-    status = models.CharField(max_length=20, choices=PaymentStatus.choices, default=PaymentStatus.HELD)
-    external_id = models.CharField(max_length=255, blank=True)
+    provider = models.CharField(
+        "Провайдер", max_length=30, choices=PaymentProviderName.choices, default=PaymentProviderName.MOCK
+    )
+    strategy = models.CharField("Стратегия", max_length=30, choices=PaymentStrategy.choices)
+    amount = models.DecimalField("Сумма", max_digits=10, decimal_places=2)
+    status = models.CharField("Статус", max_length=20, choices=PaymentStatus.choices, default=PaymentStatus.HELD)
+    external_id = models.CharField("Внешний ID", max_length=255, blank=True)
     commission_amount = models.DecimalField(
+        "Комиссия платформы",
         max_digits=10,
         decimal_places=2,
         null=True,
@@ -74,9 +84,9 @@ class Payment(models.Model):
             "фактического payout площадкам/организаторам ещё нет, провайдер не подключён."
         ),
     )
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField("Создан", auto_now_add=True)
     settled_at = models.DateTimeField(
-        null=True, blank=True, help_text="Момент списания/возврата/снятия резерва."
+        "Момент расчёта", null=True, blank=True, help_text="Момент списания/возврата/снятия резерва."
     )
 
     class Meta:

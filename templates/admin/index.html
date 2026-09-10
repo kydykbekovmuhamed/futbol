@@ -1,0 +1,103 @@
+{% extends "admin/base_site.html" %}
+{% comment %}
+Оверрайд дашборда Django admin — вместо штатного списка приложений
+(app_list boxes) показываем сводные карточки с реальными цифрами
+(futbol_stats — см. apps/frontend/admin_dashboard.py::_dashboard_stats)
+и две колонки: последние брони + "требует внимания". Навигация по
+моделям теперь только через #nav-sidebar (который на этой странице
+Django по умолчанию ВЫКЛЮЧЕН — включаем обратно ниже), поэтому
+дублирующий app_list с этой страницы убран целиком — так и было в
+мокапе Claude Design.
+{% endcomment %}
+{% load static %}
+
+{% block coltype %}colM{% endblock %}
+{% block bodyclass %}{{ block.super }} dashboard{% endblock %}
+
+{% block nav-sidebar %}
+  {% include "admin/nav_sidebar.html" %}
+{% endblock %}
+
+{% block sidebar %}{% endblock %}
+
+{% block content %}
+<div class="futbol-stats">
+  <div class="futbol-stat-card">
+    <div class="futbol-stat-label">Ждут подтверждения</div>
+    <div class="futbol-stat-num">{{ futbol_stats.pending_count }}</div>
+    <div class="futbol-stat-sub">срочных (&lt;15 мин): {{ futbol_stats.urgent_bookings|length }}</div>
+  </div>
+  <div class="futbol-stat-card">
+    <div class="futbol-stat-label">Подтверждено сегодня</div>
+    <div class="futbol-stat-num lime">{{ futbol_stats.confirmed_today }}</div>
+    <div class="futbol-stat-sub">из {{ futbol_stats.created_today }} созданных броней</div>
+  </div>
+  <div class="futbol-stat-card">
+    <div class="futbol-stat-label">Оборот сегодня</div>
+    <div class="futbol-stat-num">{{ futbol_stats.revenue_today }} <span style="font-size:15px;color:var(--muted);font-family:'Space Grotesk',sans-serif;font-weight:600;">сом</span></div>
+    <div class="futbol-stat-sub">комиссия платформы ≈ {{ futbol_stats.commission_today }} сом</div>
+  </div>
+  <div class="futbol-stat-card">
+    <div class="futbol-stat-label">Активные площадки</div>
+    <div class="futbol-stat-num">{{ futbol_stats.active_venues }}</div>
+    <div class="futbol-stat-sub">{% if futbol_stats.failed_payments %}{{ futbol_stats.failed_payments }} платежей со сбоем{% else %}сбоев платежей нет{% endif %}</div>
+  </div>
+</div>
+
+<div class="futbol-dashboard-grid" style="display:grid;grid-template-columns:1.6fr 1fr;gap:16px;align-items:start;">
+
+  <div class="module">
+    <h2 style="display:flex;align-items:center;justify-content:space-between;">
+      <span>Последние брони</span>
+      <a href="{% url 'admin:bookings_booking_changelist' %}" style="font-size:12.5px;font-weight:600;">Все брони →</a>
+    </h2>
+    <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;">
+      <tr>
+        <th style="text-align:left;padding:10px 18px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid var(--line);white-space:nowrap;">Площадка</th>
+        <th style="text-align:left;padding:10px 18px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid var(--line);white-space:nowrap;">Клиент</th>
+        <th style="text-align:left;padding:10px 18px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid var(--line);white-space:nowrap;">Время</th>
+        <th style="text-align:left;padding:10px 18px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid var(--line);white-space:nowrap;">Статус</th>
+      </tr>
+      {% for b in futbol_stats.recent_bookings %}
+      <tr>
+        <td style="padding:11px 18px;border-bottom:1px solid var(--line);white-space:nowrap;"><a href="{% url 'admin:bookings_booking_change' b.pk %}">{{ b.venue.name }}</a></td>
+        <td style="padding:11px 18px;border-bottom:1px solid var(--line);white-space:nowrap;">{{ b.client.phone }}</td>
+        <td style="padding:11px 18px;border-bottom:1px solid var(--line);white-space:nowrap;">{{ b.start_time|date:"d.m, H:i" }}–{{ b.end_time|date:"H:i" }}</td>
+        <td style="padding:11px 18px;border-bottom:1px solid var(--line);white-space:nowrap;">{{ b.get_status_display }}</td>
+      </tr>
+      {% empty %}
+      <tr><td style="padding:16px 18px;color:var(--muted);">Пока нет броней.</td></tr>
+      {% endfor %}
+    </table>
+    </div>
+  </div>
+
+  <div class="module">
+    <h2>Требует внимания</h2>
+    {% if futbol_stats.urgent_bookings %}
+      {% for b in futbol_stats.urgent_bookings %}
+      <div style="display:flex;gap:11px;padding:12px 18px;border-bottom:1px solid var(--line);">
+        <div style="width:7px;height:7px;border-radius:50%;background:var(--orange);margin-top:5px;flex:0 0 auto;"></div>
+        <div>
+          <div style="font-size:12.5px;font-weight:600;"><a href="{% url 'admin:bookings_booking_change' b.pk %}">{{ b.venue.name }}</a> — дедлайн {{ b.confirmation_deadline|date:"H:i" }}</div>
+          <div style="color:var(--muted);font-size:11.5px;margin-top:2px;">{{ b.client.phone }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    {% endif %}
+    {% if futbol_stats.failed_payments %}
+      <div style="display:flex;gap:11px;padding:12px 18px;border-bottom:1px solid var(--line);">
+        <div style="width:7px;height:7px;border-radius:50%;background:var(--red);margin-top:5px;flex:0 0 auto;"></div>
+        <div>
+          <div style="font-size:12.5px;font-weight:600;"><a href="{% url 'admin:payments_payment_changelist' %}?status__exact=failed">{{ futbol_stats.failed_payments }} платежей со сбоем</a></div>
+          <div style="color:var(--muted);font-size:11.5px;margin-top:2px;">Требуют ручной проверки</div>
+        </div>
+      </div>
+    {% endif %}
+    {% if not futbol_stats.urgent_bookings and not futbol_stats.failed_payments %}
+      <div style="padding:16px 18px;color:var(--muted);font-size:12.5px;">Всё спокойно — срочных броней и сбоев платежей нет.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

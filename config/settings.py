@@ -47,6 +47,10 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    # Без неё LANGUAGE_CODE="ru" не активируется надёжно на каждый запрос —
+    # штатные строки Django admin (в т.ч. текст select2-виджетов у
+    # autocomplete-полей, "Select an option") оставались английскими.
+    "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -59,7 +63,12 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        # Только BASE_DIR/templates/admin/ — оверрайды для редизайна Django
+        # admin (apps/frontend/templates/ не годится: apps.frontend стоит
+        # ПОСЛЕДНИМ в INSTALLED_APPS, а APP_DIRS ищет по порядку — раньше
+        # нашёлся бы стандартный шаблон из django.contrib.admin. Отдельная
+        # папка верхнего уровня в DIRS всегда проверяется первой.
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [

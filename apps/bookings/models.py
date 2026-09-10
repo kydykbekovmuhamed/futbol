@@ -34,31 +34,41 @@ AWAITING_DECISION_STATUSES = [BookingStatus.PENDING_CONFIRMATION, BookingStatus.
 
 
 class Booking(models.Model):
-    venue = models.ForeignKey("venues.Venue", on_delete=models.PROTECT, related_name="bookings")
-    client = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="bookings")
-    start_time = models.DateTimeField()
-    end_time = models.DateTimeField()
-    status = models.CharField(
-        max_length=30, choices=BookingStatus.choices, default=BookingStatus.PENDING_CONFIRMATION
+    venue = models.ForeignKey(
+        "venues.Venue", on_delete=models.PROTECT, related_name="bookings", verbose_name="Площадка"
     )
-    price = models.DecimalField(max_digits=10, decimal_places=2)
-    deposit_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    client = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="bookings", verbose_name="Клиент"
+    )
+    start_time = models.DateTimeField("Начало")
+    end_time = models.DateTimeField("Конец")
+    status = models.CharField(
+        "Статус", max_length=30, choices=BookingStatus.choices, default=BookingStatus.PENDING_CONFIRMATION
+    )
+    price = models.DecimalField("Стоимость", max_digits=10, decimal_places=2)
+    deposit_amount = models.DecimalField("Задаток", max_digits=10, decimal_places=2)
 
     # Гибридное подтверждение (roadmap 2.2): таймер 5-10 минут с момента брони.
     confirmation_deadline = models.DateTimeField(
-        help_text="Если ни один канал (push/звонок/SMS) не сработал к этому моменту — автоотмена."
+        "Дедлайн подтверждения",
+        help_text="Если ни один канал (push/звонок/SMS) не сработал к этому моменту — автоотмена.",
     )
-    confirmed_at = models.DateTimeField(null=True, blank=True)
-    declined_at = models.DateTimeField(null=True, blank=True)
+    confirmed_at = models.DateTimeField("Подтверждена в", null=True, blank=True)
+    declined_at = models.DateTimeField("Отклонена в", null=True, blank=True)
 
     # Продление игры (roadmap 2.3): бронь-продление ссылается на исходную,
     # чтобы отличать "новую игру" от "продолжения" в статистике и в UI.
     extended_from = models.ForeignKey(
-        "self", on_delete=models.SET_NULL, null=True, blank=True, related_name="extensions"
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="extensions",
+        verbose_name="Продление брони",
     )
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField("Создана", auto_now_add=True)
+    updated_at = models.DateTimeField("Обновлена", auto_now=True)
 
     class Meta:
         verbose_name = "Бронь"

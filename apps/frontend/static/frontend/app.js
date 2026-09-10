@@ -22,6 +22,11 @@
 
   var ICON = {
     ball: '<svg width="26" height="26" viewBox="0 0 24 24" class="icon"><circle cx="12" cy="12" r="9"/><path d="M12 7l3.2 2.1-1.1 3.6h-4.2l-1.1-3.6z"/><path d="M12 7V3.6M15.2 9.1l3.3-1.2M8.8 9.1l-3.3-1.2M9.9 12.7L7 16.5M14.1 12.7L17 16.5M12 15.7v3.6"/></svg>',
+    // Своя эмблема — пятиугольник из 5 клиньев вокруг меньшего центрального
+    // пятиугольника (лайм + тёмные швы), гладкий выпуклый силуэт. Намеренно
+    // НЕ повторяет форму лого аниме "Blue Lock" (у того контур со впадинами,
+    // звездой) — только общий мотив "панель мяча", это разные фигуры.
+    emblem: '<svg width="26" height="27" viewBox="0 0 100 104"><polygon points="50.81,7.38 92.19,37.44 66.04,45.15 51.56,34.62" fill="var(--lime)"/><polygon points="92.69,38.98 76.89,87.62 61.47,65.14 67.01,48.11" fill="var(--lime)"/><polygon points="75.57,88.58 24.43,88.58 41.05,66.97 58.95,66.97" fill="var(--lime)"/><polygon points="23.11,87.62 7.31,38.98 32.99,48.11 38.53,65.14" fill="var(--lime)"/><polygon points="7.81,37.44 49.19,7.38 48.44,34.62 33.96,45.15" fill="var(--lime)"/><polygon points="50.00,36.20 65.03,47.12 59.29,64.78 40.71,64.78 34.97,47.12" fill="var(--bg)"/></svg>',
     bell: '<svg width="19" height="19" viewBox="0 0 24 24" class="icon"><path d="M6 8a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>',
     search: '<svg width="21" height="21" viewBox="0 0 24 24" class="icon"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>',
     team: '<svg width="21" height="21" viewBox="0 0 24 24" class="icon"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14c2.5.3 4.5 2.3 4.5 6"/></svg>',
@@ -339,7 +344,7 @@
   function renderLoginPhone() {
     return (
       '<div class="center-screen">' +
-        '<div style="color:var(--lime);">' + ICON.ball + "</div>" +
+        '<div>' + ICON.emblem + "</div>" +
         '<div class="disp" style="font-size:30px;">ФУТБОЛ</div>' +
         '<div style="color:var(--muted);font-size:14px;max-width:280px;">Введите номер телефона — пришлём код подтверждения.</div>' +
         '<div style="width:100%;max-width:280px;">' +
@@ -427,14 +432,16 @@
     }
 
     return (
-      '<div class="top-bar">' +
-        '<div style="display:flex;align-items:center;gap:9px;color:var(--lime);">' + ICON.ball + '<div class="disp" style="font-size:22px;line-height:1;color:var(--text);">ФУТБОЛ</div></div>' +
-        '<div style="display:flex;gap:8px;">' +
-          '<div class="icon-btn" id="my-bookings-btn" title="Мои брони">' + ICON.list + "</div>" +
-          '<div class="icon-btn" id="logout-btn" title="Выйти">' + ICON.bell + '<div style="position:absolute;top:8px;right:8px;width:7px;height:7px;border-radius:50%;background:var(--orange);"></div></div>' +
+      '<div class="pitch-banner">' +
+        '<div class="top-bar">' +
+          '<div style="display:flex;align-items:center;gap:9px;">' + ICON.emblem + '<div class="disp" style="font-size:22px;line-height:1;color:var(--text);text-shadow:0 2px 8px rgba(0,0,0,0.55);">MATCH DAY</div></div>' +
+          '<div style="display:flex;gap:8px;">' +
+            '<div class="icon-btn" id="my-bookings-btn" title="Мои брони">' + ICON.list + "</div>" +
+            '<div class="icon-btn" id="logout-btn" title="Выйти">' + ICON.bell + '<div style="position:absolute;top:8px;right:8px;width:7px;height:7px;border-radius:50%;background:var(--orange);"></div></div>' +
+          "</div>" +
         "</div>" +
+        '<div class="headline"><div class="disp" style="color:var(--text);text-shadow:0 2px 10px rgba(0,0,0,0.55);">НА КАКОЕ<br>ВРЕМЯ?</div><p style="text-shadow:0 1px 6px rgba(0,0,0,0.55);">Показываем все свободные площадки на выбранный час — сами не ищите, где занято.</p></div>' +
       "</div>" +
-      '<div class="headline"><div class="disp">НА КАКОЕ<br>ВРЕМЯ?</div><p>Показываем все свободные площадки на выбранный час — сами не ищите, где занято.</p></div>' +
       '<div class="time-select-row" id="time-select-trigger">' +
         "<span>" + escapeHtml(selectedDateLabel()) + ", " + state.hour + ":00–" + (state.hour + 1) + ":00</span>" +
         ICON.chevronDown +

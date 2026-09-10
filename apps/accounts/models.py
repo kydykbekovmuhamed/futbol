@@ -33,12 +33,12 @@ class User(AbstractBaseUser, PermissionsMixin):
     поэтому номер телефона обязателен и уникален с самого начала.
     """
 
-    phone = models.CharField(max_length=20, unique=True)
-    first_name = models.CharField(max_length=150, blank=True)
-    last_name = models.CharField(max_length=150, blank=True)
-    is_active = models.BooleanField(default=True)
-    is_staff = models.BooleanField(default=False)
-    date_joined = models.DateTimeField(default=timezone.now)
+    phone = models.CharField("Телефон", max_length=20, unique=True)
+    first_name = models.CharField("Имя", max_length=150, blank=True)
+    last_name = models.CharField("Фамилия", max_length=150, blank=True)
+    is_active = models.BooleanField("Активен", default=True)
+    is_staff = models.BooleanField("Сотрудник", default=False)
+    date_joined = models.DateTimeField("Дата регистрации", default=timezone.now)
 
     objects = UserManager()
 
@@ -61,12 +61,12 @@ class OTPCode(models.Model):
     кода аккаунта может ещё не существовать (регистрация нового клиента).
     """
 
-    phone = models.CharField(max_length=20, db_index=True)
-    code = models.CharField(max_length=6)
-    created_at = models.DateTimeField(auto_now_add=True)
-    expires_at = models.DateTimeField()
-    is_used = models.BooleanField(default=False)
-    attempts = models.PositiveSmallIntegerField(default=0)
+    phone = models.CharField("Телефон", max_length=20, db_index=True)
+    code = models.CharField("Код", max_length=6)
+    created_at = models.DateTimeField("Создан", auto_now_add=True)
+    expires_at = models.DateTimeField("Истекает")
+    is_used = models.BooleanField("Использован", default=False)
+    attempts = models.PositiveSmallIntegerField("Попыток", default=0)
 
     class Meta:
         verbose_name = "Код подтверждения"

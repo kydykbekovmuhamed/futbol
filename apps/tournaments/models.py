@@ -19,26 +19,32 @@ class Tournament(models.Model):
     оплаты газона (см. apps.payments.Payment.tournament_registration).
     """
 
-    name = models.CharField(max_length=255)
-    description = models.TextField(blank=True)
+    name = models.CharField("Название", max_length=255)
+    description = models.TextField("Описание", blank=True)
     sponsor_name = models.CharField(
-        max_length=255, blank=True, help_text='"Турнир при поддержке [бренд]" — roadmap 4.1'
+        "Спонсор", max_length=255, blank=True, help_text='"Турнир при поддержке [бренд]" — roadmap 4.1'
     )
     organizer = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="organized_tournaments"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="organized_tournaments",
+        verbose_name="Организатор",
     )
-    entry_fee = models.DecimalField(max_digits=10, decimal_places=2)
+    entry_fee = models.DecimalField("Взнос за участие", max_digits=10, decimal_places=2)
     organizer_commission_percent = models.DecimalField(
+        "Комиссия организатора, %",
         max_digits=5,
         decimal_places=2,
         default=settings.DEFAULT_TOURNAMENT_ORGANIZER_COMMISSION_PERCENT,
         help_text="Комиссия организатора со взноса каждой команды (roadmap 4.1).",
     )
-    min_teams = models.PositiveSmallIntegerField(default=4)
-    max_teams = models.PositiveSmallIntegerField(null=True, blank=True)
-    registration_deadline = models.DateTimeField()
-    status = models.CharField(max_length=30, choices=TournamentStatus.choices, default=TournamentStatus.REGISTRATION_OPEN)
-    created_at = models.DateTimeField(auto_now_add=True)
+    min_teams = models.PositiveSmallIntegerField("Мин. команд", default=4)
+    max_teams = models.PositiveSmallIntegerField("Макс. команд", null=True, blank=True)
+    registration_deadline = models.DateTimeField("Дедлайн регистрации")
+    status = models.CharField(
+        "Статус", max_length=30, choices=TournamentStatus.choices, default=TournamentStatus.REGISTRATION_OPEN
+    )
+    created_at = models.DateTimeField("Создан", auto_now_add=True)
 
     class Meta:
         verbose_name = "Турнир"
@@ -67,11 +73,19 @@ class TournamentRegistration(models.Model):
     (roadmap 4.1: "техническое поражение с потерей взноса").
     """
 
-    tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, related_name="registrations")
-    team = models.ForeignKey("teams.Team", on_delete=models.CASCADE, related_name="tournament_registrations")
-    status = models.CharField(max_length=20, choices=RegistrationStatus.choices, default=RegistrationStatus.REGISTERED)
-    registered_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+")
-    created_at = models.DateTimeField(auto_now_add=True)
+    tournament = models.ForeignKey(
+        Tournament, on_delete=models.CASCADE, related_name="registrations", verbose_name="Турнир"
+    )
+    team = models.ForeignKey(
+        "teams.Team", on_delete=models.CASCADE, related_name="tournament_registrations", verbose_name="Команда"
+    )
+    status = models.CharField(
+        "Статус", max_length=20, choices=RegistrationStatus.choices, default=RegistrationStatus.REGISTERED
+    )
+    registered_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="+", verbose_name="Зарегистрировал"
+    )
+    created_at = models.DateTimeField("Создана", auto_now_add=True)
 
     class Meta:
         verbose_name = "Регистрация на турнир"
@@ -100,18 +114,26 @@ class TournamentMatch(models.Model):
     нужно было ломать ради MVP Этапа 2.
     """
 
-    tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, related_name="bracket_matches")
-    round_number = models.PositiveSmallIntegerField(default=1)
+    tournament = models.ForeignKey(
+        Tournament, on_delete=models.CASCADE, related_name="bracket_matches", verbose_name="Турнир"
+    )
+    round_number = models.PositiveSmallIntegerField("Раунд", default=1)
     home_registration = models.ForeignKey(
-        TournamentRegistration, on_delete=models.CASCADE, related_name="home_bracket_matches"
+        TournamentRegistration,
+        on_delete=models.CASCADE,
+        related_name="home_bracket_matches",
+        verbose_name="Команда 1",
     )
     away_registration = models.ForeignKey(
-        TournamentRegistration, on_delete=models.CASCADE, related_name="away_bracket_matches"
+        TournamentRegistration,
+        on_delete=models.CASCADE,
+        related_name="away_bracket_matches",
+        verbose_name="Команда 2",
     )
     match = models.OneToOneField(
-        "teams.Match", on_delete=models.CASCADE, related_name="tournament_match"
+        "teams.Match", on_delete=models.CASCADE, related_name="tournament_match", verbose_name="Матч"
     )
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField("Создан", auto_now_add=True)
 
     class Meta:
         verbose_name = "Матч турнирной сетки"
